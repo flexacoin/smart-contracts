@@ -1,0 +1,31 @@
+{
+  "name": "ico",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "bignumber.js": "^6.0.0",
+    "drizzle": "^1.1.0",
+    "drizzle-react": "^1.1.0",
+    "drizzle-react-components": "^1.1.0",
+    "hoist-non-react-statics": "^2.5.0",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
+    "react-redux": "^5.0.7",
+    "react-router": "^4.2.0",
+    "react-router-redux": "^5.0.0-alpha.9",
+    "react-scripts": "1.1.1",
+    "redux": "^3.7.2",
+    "redux-auth-wrapper": "^2.0.2",
+    "redux-saga": "^0.16.0",
+    "redux-thunk": "^2.2.0",
+    "truffle-contract": "^3.0.4",
+    "truffle-hdwallet-provider": "^0.0.3",
+    "zeppelin-solidity": "^1.8.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  }
+}
