@@ -1,9 +1,9 @@
 pragma solidity ^0.4.21;
 
-import "./ownership/Recoverable.sol";
-import "./token/ERC20Basic.sol";
-import "./token/SafeERC20.sol";
-import "./math/SafeMath.sol";
+import "./Recoverable.sol";
+import "../zeppelin/contracts/token/ERC20/ERC20Basic.sol";
+import "../zeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "../zeppelin/contracts/math/SafeMath.sol";
 
 /**
  * @title TokenVault Smart Contract

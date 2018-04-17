@@ -1,8 +1,8 @@
 pragma solidity ^0.4.12;
 
-import "./Claimable.sol";
-import "../token/ERC20Basic.sol";
-import "../token/SafeERC20.sol";
+import "../zeppelin/contracts/ownership/Claimable.sol";
+import "../zeppelin/contracts/token/ERC20/ERC20Basic.sol";
+import "../zeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 
 contract Recoverable is Claimable {

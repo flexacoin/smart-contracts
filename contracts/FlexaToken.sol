@@ -1,6 +1,6 @@
 pragma solidity ^0.4.21;
 
-import "./token/StandardToken.sol";
+import "../zeppelin/contracts/token/ERC20/StandardToken.sol";
 
 /**
  * @title The FlexaToken ERC20 Contract
