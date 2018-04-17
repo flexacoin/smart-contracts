@@ -1,13 +1,15 @@
 pragma solidity ^0.4.21;
 
 import "../zeppelin/contracts/token/ERC20/StandardToken.sol";
+import "../zeppelin/contracts/ownership/Ownable.sol";
+
 
 /**
  * @title The FlexaToken ERC20 Contract
  * @author Zachary Kilgore
  * @dev This contract is a standard ERC20 token.
  */
-contract FlexaToken is StandardToken {
+contract FlexaToken is StandardToken, Ownable {
 
   string public name = "BoCoin";
   string public symbol = "BOCN";

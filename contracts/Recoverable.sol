@@ -1,11 +1,11 @@
-pragma solidity ^0.4.12;
+pragma solidity ^0.4.21;
 
-import "../zeppelin/contracts/ownership/Claimable.sol";
+import "../zeppelin/contracts/ownership/Ownable.sol";
 import "../zeppelin/contracts/token/ERC20/ERC20Basic.sol";
 import "../zeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 
-contract Recoverable is Claimable {
+contract Recoverable is Ownable {
   using SafeERC20 for ERC20Basic;
 
   /**

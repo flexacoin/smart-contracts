@@ -1,11 +1,24 @@
-const FlexaTokenContract = artifacts.require('./FlexaToken.sol')
+const BigNumber = web3.BigNumber
 
-module.exports = function(deployer) {
-  deployer.deploy(FlexaTokenContract).then(flexacoinTokenInst => {
-    console.log('Instance', flexacoinTokenInst)
+const FlexaToken = artifacts.require('./FlexaToken.sol')
+const TokenVault = artifacts.require('./TokenVault.sol')
+
+const DECIMALS_FACTOR = new BigNumber('10').pow('18')
+
+module.exports = async function(deployer) {
+  deployer.deploy(FlexaToken).then(() => {
+    console.log('FlexaToken Address: ', FlexaToken.address)
+
+    const flexaTokenAddress = FlexaToken.address
+    const tokensToBeAllocated = 1000 * DECIMALS_FACTOR
+    const bonusesToBeAllocated = 1000 * DECIMALS_FACTOR
+
+    return deployer.deploy(
+      TokenVault,
+      flexaTokenAddress,
+      tokensToBeAllocated,
+      bonusesToBeAllocated
+    )
+    console.log('TokenVault Address: ', TokenVault.address)
   })
 }
-
-/*
-  gift brick guitar canyon subject female family fruit planet claw aim net
-*/

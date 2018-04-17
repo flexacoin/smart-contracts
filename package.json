@@ -1,7 +1,17 @@
 {
-  "name": "ico",
-  "version": "0.1.0",
+  "name": "flexa-smart-contracts",
+  "version": "0.2.0",
+  "description": "Flexa Token and Token Vault smart contracts",
+  "author": "Flexa Technologies, LLC",
   "private": true,
+
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+
   "dependencies": {
     "bignumber.js": "^6.0.0",
     "drizzle": "^1.1.0",
@@ -22,10 +32,11 @@
     "truffle-contract": "^3.0.4",
     "truffle-hdwallet-provider": "^0.0.3"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+
+  "babel": {
+    "presets": ["react-app"]
+  },
+  "eslintConfig": {
+    "extends": "react-app"
   }
 }
