@@ -10,10 +10,15 @@ import "./token/StandardToken.sol";
 contract FlexaToken is StandardToken {
 
     string public name = "BoCoin";
-    string public symbol = "QBO";
+    string public symbol = "BOCN";
     uint8 public constant decimals = 18;
     uint256 public constant INITIAL_SUPPLY = 100000000000 * (10 ** uint256(decimals));
 
+
+    /**
+     * @dev FlexaToken contract constructor. Assigns all tokens to contract
+     *      creator.
+     */
     function FlexaToken() public {
         totalSupply_ = INITIAL_SUPPLY;
         balances[msg.sender] = INITIAL_SUPPLY;

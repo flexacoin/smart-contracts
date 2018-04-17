@@ -1,7 +1,7 @@
 // Contents of https://github.com/OpenZeppelin/zeppelin-solidity/blob/a7e91856f3e275668b4a4c55cbd14864aa61b100/contracts/lifecycle/Pausable.sol
 pragma solidity ^0.4.21;
 
-import "./ownership/Ownable.sol";
+import "../ownership/Ownable.sol";
 
 
 /**

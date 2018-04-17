@@ -18,6 +18,7 @@
     "redux-auth-wrapper": "^2.0.2",
     "redux-saga": "^0.16.0",
     "redux-thunk": "^2.2.0",
+    "truffle": "^4.1.6",
     "truffle-contract": "^3.0.4",
     "truffle-hdwallet-provider": "^0.0.3",
     "zeppelin-solidity": "^1.8.0"

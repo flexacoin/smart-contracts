@@ -1,7 +1,7 @@
-const FlexacoinTokenContract = artifacts.require('./FlexacoinToken.sol')
+const FlexaTokenContract = artifacts.require('./FlexaToken.sol')
 
 module.exports = function(deployer) {
-  deployer.deploy(FlexacoinTokenContract).then(flexacoinTokenInst => {
+  deployer.deploy(FlexaTokenContract).then(flexacoinTokenInst => {
     console.log('Instance', flexacoinTokenInst)
   })
 }
