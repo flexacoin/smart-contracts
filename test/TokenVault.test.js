@@ -1,5 +1,7 @@
 import { ZERO_ADDRESS, logTitle, logError } from './helpers/common'
 import { assertRevert, EVMRevert } from './helpers/assertions'
+import { increaseTime } from './helpers/time'
+import { EIO } from 'constants'
 
 const BigNumber = web3.BigNumber
 
@@ -11,7 +13,13 @@ const should = require('chai')
 const FlexaToken = artifacts.require('FlexaToken')
 const TokenVault = artifacts.require('TokenVault')
 
-contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
+contract('TokenVault', function([
+  _,
+  owner,
+  accountOne,
+  accountTwo,
+  accountThree,
+]) {
   const DECIMALS_FACTOR = new BigNumber('10').pow('18')
 
   // Helper function to normalize whole numbers to token values with decimals
@@ -19,13 +27,11 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
   const tokens = num => num * DECIMALS_FACTOR
 
   const tokensToBeAllocated = tokens(1000)
-  const bonusesToBeAllocated = tokens(0)
+  const vestingPeriod = 60 // 1 minute
 
   // Create instance of FlexaToken
   before(async function() {
     this.token = await FlexaToken.new({ from: owner })
-    // this.token.address.should.not.be.null
-    // this.token.address.should.not.be.equal(ZERO_ADDRESS)
   })
 
   // Create instance of TokenVault for each test
@@ -33,8 +39,7 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
     this.vault = await TokenVault.new(
       this.token.address,
       tokensToBeAllocated,
-      bonusesToBeAllocated,
-      0,
+      vestingPeriod,
       { from: owner }
     )
   })
@@ -63,20 +68,13 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
     })
   })
 
-  describe('bonusesToBeAllocated', function() {
-    it('should have bonuses allocated correctly', async function() {
-      const value = await this.vault.bonusesToBeAllocated()
-      value.should.bignumber.equal(bonusesToBeAllocated)
-    })
-  })
-
   describe('totalClaimed', function() {})
 
-  describe('finalizedAt', function() {})
+  describe('lockedAt', function() {})
 
   describe('unlockedAt', function() {})
 
-  describe('setAllocationAndBonus', function() {
+  describe('setAllocation', function() {
     const amount = tokens(10)
 
     describe('when caller is not the owner', async function() {
@@ -84,7 +82,7 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
 
       it('reverts', async function() {
         await assertRevert(
-          this.vault.setAllocationAndBonus(accountOne, amount, 0, { from })
+          this.vault.setAllocation(accountOne, amount, { from })
         )
       })
     })
@@ -98,7 +96,7 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
 
         it('reverts', async function() {
           await assertRevert(
-            this.vault.setAllocationAndBonus(beneficiary, amount, 0, { from })
+            this.vault.setAllocation(beneficiary, amount, { from })
           )
         })
       })
@@ -111,17 +109,16 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
 
           it('reverts', async function() {
             await assertRevert(
-              this.vault.setAllocationAndBonus(beneficiary, amount, 0, { from })
+              this.vault.setAllocation(beneficiary, amount, { from })
             )
           })
         })
 
         describe('when amount is greater than 0', function() {
           it('emits an Allocated event', async function() {
-            const { logs } = await this.vault.setAllocationAndBonus(
+            const { logs } = await this.vault.setAllocation(
               beneficiary,
               amount,
-              0,
               {
                 from,
               }
@@ -130,11 +127,11 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
             logs.length.should.equal(1)
             logs[0].event.should.equal('Allocated')
             logs[0].args.beneficiary.should.equal(beneficiary)
-            logs[0].args.value.should.bignumber.equal(amount)
+            logs[0].args.amount.should.bignumber.equal(amount)
           })
 
           it('updates tokens allocated to 10', async function() {
-            await this.vault.setAllocationAndBonus(beneficiary, amount, 0, {
+            await this.vault.setAllocation(beneficiary, amount, {
               from,
             })
             const tokensAllocated = await this.vault.tokensAllocated()
@@ -143,14 +140,14 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
 
           describe('when account already has allocation', async function() {
             beforeEach(async function() {
-              await this.vault.setAllocationAndBonus(beneficiary, amount, 0, {
+              await this.vault.setAllocation(beneficiary, amount, {
                 from,
               })
             })
 
             it('reverts', async function() {
               await assertRevert(
-                this.vault.setAllocationAndBonus(beneficiary, amount, 0, {
+                this.vault.setAllocation(beneficiary, amount, {
                   from,
                 })
               )
@@ -158,7 +155,7 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
 
             describe('when allocating for another account', async function() {
               it('updates total tokens allocated to 20', async function() {
-                await this.vault.setAllocationAndBonus(accountTwo, amount, 0, {
+                await this.vault.setAllocation(accountTwo, amount, {
                   from,
                 })
 
@@ -172,26 +169,66 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
     })
   })
 
-  describe('finalize', function() {
+  describe('lock', function() {
     describe('when called by owner', function() {
       const from = owner
 
-      describe('when already finalized', function() {
-        it('reverts')
-      })
-
       describe('when all tokens have not been allocated', function() {
-        it('reverts')
+        beforeEach(async function() {
+          await this.token.transfer(this.vault.address, tokens(1000), { from })
+          await this.vault.setAllocation(accountOne, tokens(500), { from })
+        })
+
+        it('reverts', async function() {
+          await assertRevert(this.vault.lock({ from }))
+        })
       })
 
       describe('when all tokens have been allocated', function() {
+        beforeEach(async function() {
+          await this.vault.setAllocation(accountOne, tokens(1000), { from })
+        })
+
         describe('when vault does not have enough tokens', function() {
-          it('reverts')
+          beforeEach(async function() {
+            await this.token.transfer(this.vault.address, tokens(500), { from })
+          })
+
+          it('reverts', async function() {
+            await assertRevert(this.vault.lock({ from }))
+          })
         })
 
         describe('when vault does has enough tokens', function() {
-          it('emits Finalized event')
-          it('updates finalizedAt')
+          beforeEach(async function() {
+            await this.token.transfer(this.vault.address, tokens(1000), {
+              from,
+            })
+          })
+
+          it('emits Locked event', async function() {
+            const { logs } = await this.vault.lock({ from })
+
+            logs.length.should.equal(1)
+            logs[0].event.should.equal('Locked')
+          })
+
+          it('updates locked time', async function() {
+            const tx = await this.vault.lock({ from })
+            const lockedAt = await this.vault.lockedAt()
+
+            lockedAt.should.be.bignumber.gt(0)
+          })
+
+          describe('when already locked', function() {
+            beforeEach(async function() {
+              await this.vault.lock({ from })
+            })
+
+            it('reverts', async function() {
+              await assertRevert(this.vault.lock({ from }))
+            })
+          })
         })
       })
     })
@@ -200,12 +237,289 @@ contract('TokenVault', function([_, owner, accountOne, accountTwo]) {
       const from = accountOne
 
       it('reverts', async function() {
-        await assertRevert(this.vault.finalize({ from }))
+        await assertRevert(this.vault.lock({ from }))
       })
     })
   })
 
-  describe('claim', function() {})
+  describe('unlock', function() {
+    describe('when called by owner', function() {
+      const from = owner
 
-  describe('transfer', function() {})
+      describe('when loading', function() {
+        it('reverts', async function() {
+          await assertRevert(this.vault.unlock({ from }))
+        })
+      })
+
+      describe('when locked', function() {
+        beforeEach(async function() {
+          // Must be locked first
+          await this.token.transfer(this.vault.address, tokens(1000), {
+            from: owner,
+          })
+          await this.vault.setAllocation(accountOne, tokens(1000), {
+            from: owner,
+          })
+          await this.vault.lock({ from: owner })
+        })
+
+        describe('before vesting time has passed', function() {
+          it('reverts', async function() {
+            await assertRevert(this.vault.unlock({ from }))
+          })
+        })
+
+        describe('after vesting time has passed', function() {
+          let tx
+          beforeEach(async function() {
+            await increaseTime(vestingPeriod * 2)
+            tx = await this.vault.unlock({ from })
+          })
+
+          it('emits Unlocked event', function() {
+            const { logs } = tx
+
+            logs.length.should.equal(1)
+            logs[0].event.should.equal('Unlocked')
+          })
+
+          it('updates unlocked time', async function() {
+            const unlockedAt = await this.vault.unlockedAt()
+            unlockedAt.should.be.bignumber.gt(0)
+          })
+
+          describe('when already unlocked', function() {
+            it('reverts', async function() {
+              await assertRevert(this.vault.unlock({ from }))
+            })
+          })
+        })
+      })
+    })
+
+    describe('when called by non-owner', function() {
+      it('reverts', async function() {
+        await assertRevert(this.vault.unlock({ from: accountOne }))
+      })
+    })
+  })
+
+  describe('claim', function() {
+    beforeEach(async function() {
+      const from = owner
+      await this.token.transfer(this.vault.address, tokens(1000), { from })
+      await this.vault.setAllocation(accountOne, tokens(600), { from })
+      await this.vault.setAllocation(accountTwo, tokens(400), { from })
+    })
+
+    describe('when vault loading', function() {
+      it('reverts', async function() {
+        await assertRevert(this.vault.claim({ from: accountOne }))
+      })
+    })
+
+    describe('when vault locked', function() {
+      it('reverts', async function() {
+        await this.vault.lock({ from: owner })
+        await assertRevert(this.vault.claim({ from: accountOne }))
+      })
+    })
+
+    describe('when vault unlocked', function() {
+      beforeEach(async function() {
+        await this.vault.lock({ from: owner })
+        await increaseTime(vestingPeriod * 2)
+        await this.vault.unlock({ from: owner })
+      })
+
+      describe('when account has tokens to claim', function() {
+        const from = accountOne
+
+        let tx
+        beforeEach(async function() {
+          tx = await this.vault.claim({ from })
+        })
+
+        it('emits Distributed event', async function() {
+          const { logs } = tx
+
+          logs.length.should.equal(1)
+          logs[0].event.should.equal('Distributed')
+          logs[0].args.beneficiary.should.equal(accountOne)
+          logs[0].args.amount.should.bignumber.equal(tokens(600))
+        })
+
+        it('updates total claimed', async function() {
+          const totalClaimed = await this.vault.totalClaimed({ from })
+
+          totalClaimed.should.be.bignumber.equal(tokens(600))
+        })
+
+        it('updates claimed for account', async function() {
+          const claimed = await this.vault.claimed(accountOne, { from })
+
+          claimed.should.be.bignumber.equal(tokens(600))
+        })
+
+        describe('when original account tries to claim again', function() {
+          it('reverts', async function() {
+            await assertRevert(this.vault.claim({ from }))
+          })
+        })
+
+        describe(`when another account claims it's tokens`, function() {
+          const from = accountTwo
+
+          let tx
+          beforeEach(async function() {
+            tx = await this.vault.claim({ from })
+          })
+
+          it('emits Distributed event', async function() {
+            const { logs } = tx
+
+            logs.length.should.equal(1)
+            logs[0].event.should.equal('Distributed')
+            logs[0].args.beneficiary.should.equal(accountTwo)
+            logs[0].args.amount.should.bignumber.equal(tokens(400))
+          })
+
+          it('updates total claimed', async function() {
+            const totalClaimed = await this.vault.totalClaimed({ from })
+
+            totalClaimed.should.be.bignumber.equal(tokens(1000))
+          })
+
+          it('updates claimed for account', async function() {
+            const claimed = await this.vault.claimed(accountTwo, { from })
+
+            claimed.should.be.bignumber.equal(tokens(400))
+          })
+        })
+      })
+
+      describe('when account has no tokens to claim', function() {
+        const from = accountThree
+        it('reverts', async function() {
+          await assertRevert(this.vault.claim({ from }))
+        })
+      })
+    })
+  })
+
+  describe('transfer for', function() {
+    // Setup the vault
+    beforeEach(async function() {
+      const from = owner
+      await this.token.transfer(this.vault.address, tokens(1000), { from })
+      await this.vault.setAllocation(accountOne, tokens(600), { from })
+      await this.vault.setAllocation(accountTwo, tokens(400), { from })
+    })
+
+    describe('when vault loading', function() {
+      it('reverts', async function() {
+        await assertRevert(this.vault.claim({ from: accountOne }))
+      })
+    })
+
+    describe('when vault locked', function() {
+      it('reverts', async function() {
+        await this.vault.lock({ from: owner })
+        await assertRevert(this.vault.claim({ from: accountOne }))
+      })
+    })
+
+    describe('when vault unlocked', function() {
+      beforeEach(async function() {
+        await this.vault.lock({ from: owner })
+        await increaseTime(vestingPeriod * 2)
+        await this.vault.unlock({ from: owner })
+      })
+
+      describe('when called by owner', function() {
+        const from = owner
+
+        describe('when beneficiary has an allocation', function() {
+          const beneficiary = accountOne
+
+          let tx
+          beforeEach(async function() {
+            tx = await this.vault.transferFor(beneficiary, { from })
+          })
+
+          it('emits Distributed event', async function() {
+            const { logs } = tx
+
+            logs.length.should.equal(1)
+            logs[0].event.should.equal('Distributed')
+            logs[0].args.beneficiary.should.equal(accountOne)
+            logs[0].args.amount.should.bignumber.equal(tokens(600))
+          })
+
+          it('updates total claimed', async function() {
+            const totalClaimed = await this.vault.totalClaimed({ from })
+
+            totalClaimed.should.be.bignumber.equal(tokens(600))
+          })
+
+          it('updates claimed for account', async function() {
+            const claimed = await this.vault.claimed(accountOne, { from })
+
+            claimed.should.be.bignumber.equal(tokens(600))
+          })
+
+          describe('when original account tries to claim again', function() {
+            it('reverts', async function() {
+              await assertRevert(this.vault.claim({ from }))
+            })
+          })
+
+          describe(`when another account claims it's tokens`, function() {
+            const beneficiary = accountTwo
+
+            let tx
+            beforeEach(async function() {
+              tx = await this.vault.transferFor(beneficiary, { from })
+            })
+
+            it('emits Distributed event', async function() {
+              const { logs } = tx
+
+              logs.length.should.equal(1)
+              logs[0].event.should.equal('Distributed')
+              logs[0].args.beneficiary.should.equal(accountTwo)
+              logs[0].args.amount.should.bignumber.equal(tokens(400))
+            })
+
+            it('updates total claimed', async function() {
+              const totalClaimed = await this.vault.totalClaimed({ from })
+
+              totalClaimed.should.be.bignumber.equal(tokens(1000))
+            })
+
+            it('updates claimed for account', async function() {
+              const claimed = await this.vault.claimed(accountTwo, { from })
+
+              claimed.should.be.bignumber.equal(tokens(400))
+            })
+          })
+        })
+
+        describe('when account has no tokens to claim', function() {
+          it('reverts', async function() {
+            await assertRevert(this.vault.transferFor(accountThree, { from }))
+          })
+        })
+      })
+
+      describe('when called by non-owner', function() {
+        it('reverts', async function() {
+          await assertRevert(
+            this.vault.transferFor(accountOne, { from: accountOne })
+          )
+        })
+      })
+    })
+  })
 })

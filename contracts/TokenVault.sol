@@ -38,72 +38,61 @@ contract TokenVault is CanReclaimToken, Claimable {
    */
   uint256 public tokensToBeAllocated;
 
-  // Bonuses like above
-  uint256 public bonusesToBeAllocated;
-
   // tokensAllocated tracks the total amount of tokens allocated.
   uint256 public tokensAllocated;
-
-  // bonusesllocated tracks the total amount of tokens allocated to bonuses.
-  uint256 public bonusesAllocated;
 
   // Total amount of tokens claimed, including bonuses.
   uint256 public totalClaimed;
 
-  // UNIX timestamp when the contract was finalized.
-  uint256 public finalizedAt;
+  // UNIX timestamp when the contract was locked.
+  uint256 public lockedAt;
 
   // UNIX timestamp when the contract was unlocked.
   uint256 public unlockedAt;
 
-  // bonusVestingTime is the amount of time (in milliseconds) to wait after
-  // unlocking to allow bonuses to be claimed
-  uint256 public constant bonusVestingTime = 1 * 24 * 60 * 60 * 1000;
+  // vestingPeriod is the amount of time (in milliseconds) to wait after
+  // unlocking to allow allocations to be claimed
+  uint256 public vestingPeriod = 0;
 
   // Mapping of accounts to token allocations
-  mapping (address => uint256) private tokenBalances;
-
-  // Mapping of accounts to bonus allocations
-  mapping (address => uint256) private bonusBalances;
+  mapping (address => uint256) public allocations;
 
   // @TODO Mapping of tokens claimed by a beneficiary
-  mapping (address => uint256) private tokensClaimed;
+  mapping (address => uint256) public claimed;
 
-  // Event to track all allocations are set and vault is ready to be unlocked.
-  event Finalized();
+  // Event to track that allocations have been set.
+  event Locked();
 
-  // Event to track when vault is unlocked and tokens may be claimed.
+  // Event to track when the allocations are available to be claimed.
   event Unlocked();
 
   /**
    * Event to track successful allocation of amount and bonus amount.
    * @param beneficiary Account that allocation is for
-   * @param value Amount of tokens allocated
-   * @param bonusValue Amount of bonus tokens allocated
+   * @param amount Amount of tokens allocated
    */
-  event Allocated(address indexed beneficiary, uint256 value, uint256 bonusValue);
+  event Allocated(address indexed beneficiary, uint256 amount);
 
   /**
    * Event to track a beneficiary receiving an allotment of tokens
    * @param beneficiary Account that received tokens
-   * @param value Amount of tokens received
+   * @param amount Amount of tokens received
    */
-  event Distributed(address indexed beneficiary, uint256 value);
+  event Distributed(address indexed beneficiary, uint256 amount);
 
   // Must not have been finalized or unlocked in order to be loading
-  modifier vaultNotFinalized() {
-    require(finalizedAt == 0);
-    require(unlockedAt == 0);
+  modifier vaultLoading() {
+    require(lockedAt == 0);
     _;
   }
 
-  // Ensure the vault has been finalized
-  modifier vaultFinalized() {
-    require(finalizedAt > 0);
+  // Ensure the vault has been locked
+  modifier vaultLocked() {
+    require(lockedAt > 0);
     _;
   }
 
-  // Ensure the vault is unlocked
+  // Ensure the vault has been unlocked
   modifier vaultUnlocked() {
     require(unlockedAt > 0);
     _;
@@ -111,166 +100,160 @@ contract TokenVault is CanReclaimToken, Claimable {
 
 
   /**
-   * @dev Creates a TokenVault contract that stores the token distribution, including
-   *      bonus allocations.
+   * @dev Creates a TokenVault contract that stores the token distribution
+   * @param _token The address of the ERC20 token the vault is for
+   * @param _tokensToBeAllocated The amount of tokens that will be allocated
+   * prior to locking
+   * @param _vestingPeriod The amount of time, in seconds, that must pass
+   * after locking in the allocations and then unlocking the allocations for
+   * claiming
    */
   function TokenVault(
     ERC20Basic _token,
     uint256 _tokensToBeAllocated,
-    uint256 _bonusesToBeAllocated
+    uint256 _vestingPeriod
   )
     public
   {
     require(address(_token) != address(0));
     require(_tokensToBeAllocated > 0);
-    require(_bonusesToBeAllocated > 0);
 
     token = _token;
     tokensToBeAllocated = _tokensToBeAllocated;
-    bonusesToBeAllocated = _bonusesToBeAllocated;
-  }
-
-  /**
-   * @notice Finalize setting of allocations and bonuses
-   * @return true if the vault has been finalized, false if not
-   */
-  function finalize() public onlyOwner vaultNotFinalized returns(bool success) {
-    // Ensure we have allocated all we expected
-    require(tokensAllocated == tokensToBeAllocated);
-    require(bonusesAllocated == bonusesToBeAllocated);
-
-    // Ensure vault has required balance of tokens to distribute. Needs to have
-    // enough for the bonus as well.
-    uint256 total = tokensAllocated;
-    total.add(bonusesAllocated);
-    require(token.balanceOf(address(this)) == total);
-
-    finalizedAt = now;
-
-    emit Finalized();
-
-    success = true;
+    vestingPeriod = _vestingPeriod;
   }
 
   /**
    * @dev Function to set allocations for accounts. To be called by owner,
-   *      likely in a scripted fashion.
+   * likely in a scripted fashion.
    * @param _beneficiary The address to allocate token amount and bonus amount for
    * @param _amount The amount of tokens to be allocated and made available
-   *         immediately on unlock
-   * @param _bonusAmount The amount of tokens to be allocated and made available
-   *        once bonuses have vested
+   * immediately on unlock
    * @return true if allocation and bonus have been set for beneficiary, false
-   *         if unable to.
+   * if unable to
    */
-  function setAllocationAndBonus(
+  function setAllocation(
     address _beneficiary,
-    uint256 _amount,
-    uint256 _bonusAmount
+    uint256 _amount
   )
     external
     onlyOwner
-    vaultNotFinalized
+    vaultLoading
     returns(bool success)
   {
     require(_beneficiary != address(0)); // Ensure we've set the beneficiary
     require(_amount != 0); // Ensure we have non zero amount
+    require(allocations[_beneficiary] == 0); // Ensure that we haven't yet set for this address
 
     // Setting an allocation should
     // * Add _amount to tokensAllocated
-    // * Add _amount to tokenBalances for _beneficiary
-    // * Add _bonusAmount to bonusesAllocated
-    // * Add _bonusAmount to bonusBalances for _beneficiary
-    tokenBalances[_beneficiary].add(_amount);
-    tokensAllocated.add(_amount);
+    // * Add _amount to allocations for _beneficiary
+    allocations[_beneficiary] = allocations[_beneficiary].add(_amount);
+    tokensAllocated = tokensAllocated.add(_amount);
 
-    if (_bonusAmount > 0) {
-      bonusBalances[_beneficiary].add(_bonusAmount);
-      bonusesAllocated.add(_bonusAmount);
-    }
+    emit Allocated(_beneficiary, _amount);
 
-    emit Allocated(_beneficiary, _amount, _bonusAmount);
     success = true;
   }
 
   /**
+   * @notice Finalize setting of allocations and begin the lock up period.
+   * @dev Should be called after all allocations have been recorded.
+   * @return true if the vault has been successfully locked, false if it has not
+   */
+  function lock() public onlyOwner vaultLoading returns(bool success) {
+    // Ensure we have allocated all we expected to
+    require(tokensAllocated == tokensToBeAllocated);
+    // Ensure vault has required balance of tokens to distribute. Needs to have
+    // enough for the bonus as well.
+    require(token.balanceOf(address(this)) == tokensAllocated);
+
+    lockedAt = now;
+
+    emit Locked();
+
+    success = true;
+  }
+
+  // event Print(uint256 lockedAt, uint256 added, uint256 ts);
+
+
+  /**
    * @notice Unlock the tokens in the vault and allow tokens to be claimed by
-   *         their owners.
-   * @dev Must be finalized prior to unlocking
+   * their owners.
+   * @dev Must be locked prior to unlocking. Also, the vestingPeriod must be up.
    * @return true if executed, false if not
    */
-  function unlock() public onlyOwner vaultFinalized returns(bool success) {
+  function unlock() public onlyOwner vaultLocked returns(bool success) {
+    require(unlockedAt == 0); // Can only unlock once
+    require(now >= lockedAt.add(vestingPeriod)); // Lock up must be over
+
+
     unlockedAt = now;
+
     emit Unlocked();
+
     success = true;
   }
 
   /**
    * @notice Claim whatever tokens account are available to be claimed by the caller.
-   * @dev Can be called when contract has been unlocked.
+   * @dev Can only be called once contract has been unlocked.
    * @return true if balance successfully distribute to sender, false otherwise.
    */
   function claim() public vaultUnlocked returns(bool success) {
-    address beneficiary = msg.sender;
-    require(tokenBalances[beneficiary] > 0);
-
-    uint256 amount = tokenBalances[beneficiary];
-    tokenBalances[beneficiary] = 0; // Zero out token balance for beneficiary
-
-    require(_transferTokens(beneficiary, amount));
-    success = true;
+    return _transferTokens(msg.sender);
   }
-
-  /**
-   * @notice claimBonus is used to claim an unlocked bonus allotment
-   * @dev TODO
-   */
-  // function claimBonus() public vaultUnlocked returns (bool) {
-  //   // Bonuses are available after the vault has been unlocked and enough vesting
-  //   // time has completed
-  //   require(unlockedAt + bonusVestingTime > now);
-
-  //   // Not implemented\
-  //   require(false);
-
-  //   return false;
-  // }
 
   /**
    * @notice Utility function to actually transfer allocated tokens to their
-             owners.
+   * owners.
    * @dev Can only be called by the owner. To be used in case an investor would
-   *      like their tokens transferred directly. Useful for scripting.
-   * @param _beneficiary Account to transfer tokens to. The amount is derived from
-            the claimable amount in the vault.
+   * like their tokens transferred directly for them. Should be scripted.
+   * @param _beneficiary Account to transfer tokens to
    */
-  function transfer(address _beneficiary) public onlyOwner vaultUnlocked returns(bool success) {
-    require(tokenBalances[_beneficiary] > 0);
-
-    uint256 amount = tokenBalances[_beneficiary];
-    tokenBalances[_beneficiary] = 0; // Zero out token balance for beneficiary
-
-    require(_transferTokens(_beneficiary, amount));
-    success = true;
+  function transferFor(
+    address _beneficiary
+  )
+    public
+    onlyOwner
+    vaultUnlocked
+    returns(bool success)
+  {
+    return _transferTokens(_beneficiary);
   }
 
   /***************
-      Internal
+      Private
   ****************/
 
   /**
-   * @dev Internal function to transfer an amount of tokens to a beneficiary.
+   * @dev Calculate the number of tokens a beneficiary can claim
+   * @return The amount of tokens available to be claimed
+   */
+  function _claimableTokens(address _beneficiary) private view returns(uint256 amount) {
+    return allocations[_beneficiary].sub(claimed[_beneficiary]);
+  }
+
+  /**
+   * @dev Internal function to transfer an amount of tokens to a beneficiary
+   * @param _beneficiary Account to transfer tokens to. The amount is derived from
+   * the claimable amount in the vault.
    * @return true if tokens transferred successfully, false if not.
    */
-  function _transferTokens(address _beneficiary, uint256 _amount) internal returns(bool success) {
-    // Update the claimed trackers
-    tokensClaimed[_beneficiary].add(_amount);
-    totalClaimed.add(_amount);
+  function _transferTokens(address _beneficiary) private returns(bool success) {
+    uint256 _amount = _claimableTokens(_beneficiary);
+    require(_amount > 0);
+
+    // Update the claimed globals
+    claimed[_beneficiary] = claimed[_beneficiary].add(_amount);
+    totalClaimed = totalClaimed.add(_amount);
 
     token.safeTransfer(_beneficiary, _amount);
 
     emit Distributed(_beneficiary, _amount);
-    return true;
+
+    success = true;
   }
 
 }
