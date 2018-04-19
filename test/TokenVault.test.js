@@ -68,11 +68,12 @@ contract('TokenVault', function([
     })
   })
 
-  describe('totalClaimed', function() {})
-
-  describe('lockedAt', function() {})
-
-  describe('unlockedAt', function() {})
+  describe('vestingPeriod', function() {
+    it('returns the vesting period', async function() {
+      const value = await this.vault.vestingPeriod()
+      value.should.bignumber.equal(vestingPeriod)
+    })
+  })
 
   describe('setAllocation', function() {
     const amount = tokens(10)

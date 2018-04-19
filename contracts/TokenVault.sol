@@ -1,44 +1,29 @@
 pragma solidity ^0.4.21;
 
-// import "./Recoverable.sol";
-import "../zeppelin/contracts/ownership/Claimable.sol";
-import "../zeppelin/contracts/ownership/CanReclaimToken.sol";
+import "./Recoverable.sol";
 import "../zeppelin/contracts/token/ERC20/ERC20Basic.sol";
 import "../zeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../zeppelin/contracts/math/SafeMath.sol";
 
-/*
-
-TODO
-----
-* Ensure contract can reclaim any sent ETH as well
-* * Create an inheritable version of that that involves all of the desired ownership properties
-* Figure out if we want to just use two instances of vault contracts for different
-  vesting periods (initial vs bonus)
-*/
-
-
 
 /**
  * @title TokenVault Smart Contract
+ * @author Zachary Kilgore @ Flexa Technologies LLC
  * @dev Contract to handle token distribution and lockup.
- *
- * TokenVault is Recoverable, which also means it is Ownable. (TODO - Claimable)
+ * TokenVault is Recoverable, which also means it is Ownable and the owner can
+ * reclaim any errant tokens or ether that is sent to the contract.
  */
-contract TokenVault is CanReclaimToken, Claimable {
+contract TokenVault is Recoverable {
   using SafeMath for uint256;
   using SafeERC20 for ERC20Basic;
 
-  // The ERC20 token distribution being managed
+  // The ERC20 token distribution being managed.
   ERC20Basic public token;
 
-  /**
-   * totalTokensToBeAllocated should be set on initialization with the amount of
-   * tokens that should be allocated prior to releasing the tokens.
-   */
+  // The amount of tokens that should be allocated prior to locking the vault.
   uint256 public tokensToBeAllocated;
 
-  // tokensAllocated tracks the total amount of tokens allocated.
+  // The total amount of tokens allocated
   uint256 public tokensAllocated;
 
   // Total amount of tokens claimed, including bonuses.
@@ -57,8 +42,9 @@ contract TokenVault is CanReclaimToken, Claimable {
   // Mapping of accounts to token allocations
   mapping (address => uint256) public allocations;
 
-  // @TODO Mapping of tokens claimed by a beneficiary
+  // Mapping of tokens claimed by a beneficiary
   mapping (address => uint256) public claimed;
+
 
   // Event to track that allocations have been set.
   event Locked();
@@ -80,6 +66,7 @@ contract TokenVault is CanReclaimToken, Claimable {
    */
   event Distributed(address indexed beneficiary, uint256 amount);
 
+
   // Must not have been finalized or unlocked in order to be loading
   modifier vaultLoading() {
     require(lockedAt == 0);
@@ -100,8 +87,8 @@ contract TokenVault is CanReclaimToken, Claimable {
 
 
   /**
-   * @dev Creates a TokenVault contract that stores the token distribution
-   * @param _token The address of the ERC20 token the vault is for
+   * @dev Creates a TokenVault contract that stores a token distribution
+   * @param _token The address of the ERC20 token the Vault is for
    * @param _tokensToBeAllocated The amount of tokens that will be allocated
    * prior to locking
    * @param _vestingPeriod The amount of time, in seconds, that must pass
@@ -168,7 +155,8 @@ contract TokenVault is CanReclaimToken, Claimable {
     // enough for the bonus as well.
     require(token.balanceOf(address(this)) == tokensAllocated);
 
-    lockedAt = now;
+    // solium-disable-next-line security/no-block-members
+    lockedAt = block.timestamp;
 
     emit Locked();
 
@@ -186,10 +174,11 @@ contract TokenVault is CanReclaimToken, Claimable {
    */
   function unlock() public onlyOwner vaultLocked returns(bool success) {
     require(unlockedAt == 0); // Can only unlock once
-    require(now >= lockedAt.add(vestingPeriod)); // Lock up must be over
+    // solium-disable-next-line security/no-block-members
+    require(block.timestamp >= lockedAt.add(vestingPeriod)); // Lock up must be over
 
-
-    unlockedAt = now;
+    // solium-disable-next-line security/no-block-members
+    unlockedAt = block.timestamp;
 
     emit Unlocked();
 
@@ -245,7 +234,6 @@ contract TokenVault is CanReclaimToken, Claimable {
     uint256 _amount = _claimableTokens(_beneficiary);
     require(_amount > 0);
 
-    // Update the claimed globals
     claimed[_beneficiary] = claimed[_beneficiary].add(_amount);
     totalClaimed = totalClaimed.add(_amount);
 
