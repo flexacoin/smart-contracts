@@ -5,7 +5,11 @@ const TokenVault = artifacts.require('./TokenVault.sol')
 
 const DECIMALS_FACTOR = new BigNumber('10').pow('18')
 
-module.exports = async function(deployer) {
+module.exports = async function(deployer, environment, accounts) {
+  if (process.env.NODE_ENV === 'test') {
+    return
+  }
+
   deployer.deploy(FlexaToken).then(() => {
     console.log('FlexaToken Address: ', FlexaToken.address)
 
@@ -17,7 +21,8 @@ module.exports = async function(deployer) {
       TokenVault,
       flexaTokenAddress,
       tokensToBeAllocated,
-      bonusesToBeAllocated
+      bonusesToBeAllocated,
+      0
     )
     console.log('TokenVault Address: ', TokenVault.address)
   })
