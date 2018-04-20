@@ -78,7 +78,6 @@
   },
   "babel": {
     "presets": [
-      // "react-app",
       "es2015",
       "stage-2",
       "stage-3"
