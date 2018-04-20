@@ -19,6 +19,7 @@ import "./Recoverable.sol";
  * - Upgradeable: Allows for the token to be upgraded to a new contract.
  */
 contract Flexacoin is PausableToken, UpgradeableToken, Recoverable {
+
   string public constant name = "Flexacoin";
   string public constant symbol = "FXC";
   uint8 public constant decimals = 18;

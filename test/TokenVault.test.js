@@ -1,7 +1,7 @@
-import { ZERO_ADDRESS, logTitle, logError } from './helpers/common'
+import { ZERO_ADDRESS } from './helpers/common'
 import { assertRevert, EVMRevert } from './helpers/assertions'
 import { increaseTime } from './helpers/time'
-import { EIO } from 'constants'
+import { DECIMALS_FACTOR, tokens } from './helpers/flexacoin'
 
 const BigNumber = web3.BigNumber
 
@@ -10,7 +10,7 @@ const should = require('chai')
   .use(require('chai-bignumber')(BigNumber))
   .should()
 
-const FlexaToken = artifacts.require('FlexaToken')
+const Flexacoin = artifacts.require('Flexacoin')
 const TokenVault = artifacts.require('TokenVault')
 
 contract('TokenVault', function([
@@ -20,18 +20,12 @@ contract('TokenVault', function([
   accountTwo,
   accountThree,
 ]) {
-  const DECIMALS_FACTOR = new BigNumber('10').pow('18')
-
-  // Helper function to normalize whole numbers to token values with decimals
-  // applied
-  const tokens = num => num * DECIMALS_FACTOR
-
   const tokensToBeAllocated = tokens(1000)
   const vestingPeriod = 60 // 1 minute
 
-  // Create instance of FlexaToken
+  // Create instance of Flexacoin
   before(async function() {
-    this.token = await FlexaToken.new({ from: owner })
+    this.token = await Flexacoin.new({ from: owner })
   })
 
   // Create instance of TokenVault for each test
