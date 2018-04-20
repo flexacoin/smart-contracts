@@ -23,7 +23,8 @@ contract Flexacoin is PausableToken, UpgradeableToken, Recoverable {
   string public constant name = "Flexacoin";
   string public constant symbol = "FXC";
   uint8 public constant decimals = 18;
-  uint256 INITIAL_SUPPLY = 100000000000 * (10 ** uint256(decimals));
+
+  uint256 public constant INITIAL_SUPPLY = 100000000000 * (10 ** uint256(decimals));
 
 
   /**
