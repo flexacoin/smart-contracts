@@ -19,6 +19,8 @@ contract UpgradeableTokenMock is UpgradeableToken {
     UpgradeableToken(_upgradeMaster)
   {
     totalSupply_ = _totalSupply;
+    balances[msg.sender] = _totalSupply;
+    emit Transfer(0x0, msg.sender, _totalSupply);
   }
 
 }

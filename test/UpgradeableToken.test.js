@@ -1,5 +1,5 @@
 import { ZERO_ADDRESS } from './helpers/common'
-import { assertRevert, EVMRevert } from './helpers/assertions'
+import { assertRevert, assertThrow } from './helpers/assertions'
 import { increaseTime } from './helpers/time'
 import { DECIMALS_FACTOR, tokens } from './helpers/flexacoin'
 
@@ -19,8 +19,10 @@ contract('UpgradeableToken', function([
   accountMaster,
   secondMaster,
   otherAccount,
+  accountOne,
+  accountTwo,
 ]) {
-  const totalSupply = 1000
+  const totalSupply = tokens(1000)
 
   beforeEach(async function() {
     this.token = await UpgradeableTokenMock.new(accountMaster, totalSupply, {
@@ -117,7 +119,8 @@ contract('UpgradeableToken', function([
         describe('when setting upgrade agent to a valid UpgradeAgent', function() {
           describe('that has an incorrect supply', function() {
             beforeEach(async function() {
-              this.upgradeAgent = await UpgradeAgentMock.new(totalSupply + 1)
+              const supply = totalSupply + tokens(1)
+              this.upgradeAgent = await UpgradeAgentMock.new(supply)
             })
 
             it('reverts', async function() {
@@ -194,28 +197,181 @@ contract('UpgradeableToken', function([
   })
 
   describe('upgrade', function() {
+    /* First set up token balances */
+    const amountAccountOne = tokens(100)
+    const amountAccountTwo = tokens(150)
+    beforeEach(async function() {
+      await this.token.transfer(accountOne, amountAccountOne, { from: owner })
+      await this.token.transfer(accountTwo, amountAccountTwo, { from: owner })
+    })
+
     describe('when contract is not in a valid upgradeable state', function() {
-      it('fails needs tests')
+      it('reverts', async function() {
+        await assertRevert(
+          this.token.upgrade(amountAccountOne, { from: accountOne })
+        )
+      })
     })
 
     describe('when the contract is in an upgradeable state', function() {
-      describe('when called with no value', function() {
-        it('fails needs tests')
-      })
-
-      describe('when called with greater than zero value', function() {
-        describe(`when called with value greater than sender's balance`, function() {
-          it('fails needs tests')
+      /* To get to upgradeable state, set a valid upgrade agent */
+      beforeEach(async function() {
+        this.upgradeAgent = await UpgradeAgentMock.new(totalSupply, {
+          from: owner,
         })
 
-        describe(`when called with sender's balance`, function() {
-          it('works needs tests')
+        await this.token.setUpgradeAgent(this.upgradeAgent.address, {
+          from: accountMaster,
+        })
+      })
+
+      describe('when called by an account with a token balance > 0', function() {
+        const from = accountOne
+
+        describe('when called with 0 value', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.upgrade(0, { from }))
+          })
+        })
+
+        describe('when called with greater than zero value', function() {
+          describe(`when called with value greater than sender's balance`, function() {
+            const value = tokens(200) // Twice as many as accountOne has
+
+            it('reverts', async function() {
+              await assertThrow(this.token.upgrade(value, { from }))
+            })
+          })
+
+          describe(`when called with sender's balance`, function() {
+            const value = amountAccountOne
+
+            let tx
+            let originalTotalSupply
+            let originalTotalUpgraded
+            beforeEach(async function() {
+              originalTotalSupply = await this.token.totalSupply({ from })
+              originalTotalUpgraded = await this.token.totalUpgraded({ from })
+              tx = await this.token.upgrade(value, { from })
+            })
+
+            it('emits Upgrade event', function() {
+              const { logs } = tx
+
+              logs.length.should.equal(1)
+              logs[0].event.should.equal('Upgrade')
+              logs[0].args.from.should.equal(accountOne)
+              logs[0].args.to.should.equal(this.upgradeAgent.address)
+              logs[0].args.value.should.bignumber.equal(amountAccountOne)
+            })
+
+            it(`decrements the sender's token balance to 0`, async function() {
+              const accountOneTokenBalance = await this.token.balanceOf(
+                accountOne,
+                { from }
+              )
+
+              accountOneTokenBalance.should.bignumber.equal(0)
+            })
+
+            it(`decrements the token's total supply by value upgraded`, async function() {
+              const newTotalSupply = await this.token.totalSupply({ from })
+
+              newTotalSupply.should.bignumber.equal(
+                originalTotalSupply.minus(amountAccountOne)
+              )
+            })
+
+            it(`increments the token's total upgraded by the value upgraded`, async function() {
+              const newTotalUpgraded = await this.token.totalUpgraded({ from })
+
+              newTotalUpgraded.should.bignumber.equal(
+                originalTotalUpgraded.plus(amountAccountOne)
+              )
+            })
+
+            it(`executes 'upgradeFrom' in the UpgradeAgent contract`, async function() {
+              const accountOneNewBalance = await this.upgradeAgent.newBalances(
+                accountOne,
+                { from }
+              )
+
+              accountOneNewBalance.should.bignumber.equal(amountAccountOne)
+            })
+          })
         })
       })
     })
   })
 
   describe('states', function() {
-    it('needs tests')
+    const upgradeStates = {
+      Unknown: 0,
+      NotAllowed: 1,
+      WaitingForAgent: 2,
+      ReadyToUpgrade: 3,
+      Upgrading: 4,
+    }
+
+    const account = accountOne
+    const amount = tokens(100)
+
+    beforeEach(async function() {
+      await this.token.transfer(account, amount, { from: owner })
+    })
+
+    describe('when upgrade agent is not set', function() {
+      it(`returns 'WaitingForAgent'`, async function() {
+        const state = await this.token.getUpgradeState()
+
+        state.should.bignumber.equal(upgradeStates.WaitingForAgent)
+      })
+    })
+
+    describe('when upgrade agent is set', function() {
+      beforeEach(async function() {
+        this.upgradeAgent = await UpgradeAgentMock.new(totalSupply, {
+          from: owner,
+        })
+
+        await this.token.setUpgradeAgent(this.upgradeAgent.address, {
+          from: accountMaster,
+        })
+      })
+
+      describe('and nothing has been upgraded yet', function() {
+        it(`returns 'ReadyToUpgrade'`, async function() {
+          const state = await this.token.getUpgradeState()
+
+          state.should.bignumber.equal(upgradeStates.ReadyToUpgrade)
+        })
+      })
+
+      describe('and upgrading has begun', function() {
+        beforeEach(async function() {
+          await this.token.upgrade(amount, { from: account })
+        })
+
+        it(`returns 'Upgrading'`, async function() {
+          const state = await this.token.getUpgradeState()
+
+          state.should.bignumber.equal(upgradeStates.Upgrading)
+        })
+
+        describe('when trying to set a new upgrade agent after upgrading has begun', function() {
+          beforeEach(async function() {
+            this.upgradeAgent2 = await UpgradeAgentMock.new(totalSupply)
+          })
+
+          it('reverts', async function() {
+            await assertRevert(
+              this.token.setUpgradeAgent(this.upgradeAgent2.address, {
+                from: accountMaster,
+              })
+            )
+          })
+        })
+      })
+    })
   })
 })
