@@ -9,8 +9,9 @@
     "compile": "truffle compile",
     "migrate": "truffle migrate",
     "networks": "truffle networks",
+    "ganache": "ganache-cli",
     "test": "truffle test --network test",
-    "ganache": "ganache-cli"
+    "coverage": "solidity-coverage"
   },
   "devDependencies": {
     "babel-core": "6.26.0",
@@ -31,6 +32,7 @@
     "eslint-plugin-import": "2.8.0",
     "ganache-cli": "^6.1.0",
     "promise": "8.0.1",
+    "solidity-coverage": "^0.5.0",
     "truffle": "^4.1.6",
     "truffle-contract": "^3.0.4",
     "truffle-hdwallet-provider": "^0.0.3"

@@ -2,7 +2,6 @@ const BigNumber = web3.BigNumber
 
 const Flexacoin = artifacts.require('./Flexacoin.sol')
 const TokenVault = artifacts.require('./TokenVault.sol')
-const BonusVault = artifacts.require('./BonusVault.sol')
 
 const DECIMALS_FACTOR = new BigNumber('10').pow('18')
 const tokens = num => num * DECIMALS_FACTOR
@@ -22,8 +21,8 @@ const allocations = [
   },
 ]
 
-module.exports = async function(deployer, environment, accounts) {
-  if (environment === 'test') {
+module.exports = async function(deployer, network, accounts) {
+  if (network === 'test' || network === 'coverage') {
     return
   }
 
@@ -34,7 +33,6 @@ module.exports = async function(deployer, environment, accounts) {
 
   // Deploy Initial TokenVault Contract
   const tokensToBeAllocated = tokens(30000)
-
   const tokenVault = await TokenVault.new(
     flexacoin.address,
     tokensToBeAllocated,

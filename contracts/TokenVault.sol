@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity 0.4.21;
 
 import "./Recoverable.sol";
 import "../zeppelin/contracts/token/ERC20/ERC20Basic.sol";
@@ -17,39 +17,41 @@ contract TokenVault is Recoverable {
   using SafeMath for uint256;
   using SafeERC20 for ERC20Basic;
 
-  // The ERC20 token distribution being managed.
+  /** The ERC20 token distribution being managed. */
   ERC20Basic public token;
 
-  // The amount of tokens that should be allocated prior to locking the vault.
+  /** The amount of tokens that should be allocated prior to locking the vault. */
   uint256 public tokensToBeAllocated;
 
-  // The total amount of tokens allocated
+  /** The total amount of tokens allocated */
   uint256 public tokensAllocated;
 
-  // Total amount of tokens claimed, including bonuses.
+  /** Total amount of tokens claimed, including bonuses. */
   uint256 public totalClaimed;
 
-  // UNIX timestamp when the contract was locked.
+  /** UNIX timestamp when the contract was locked. */
   uint256 public lockedAt;
 
-  // UNIX timestamp when the contract was unlocked.
+  /** UNIX timestamp when the contract was unlocked. */
   uint256 public unlockedAt;
 
-  // vestingPeriod is the amount of time (in milliseconds) to wait after
-  // unlocking to allow allocations to be claimed
+  /**
+   * vestingPeriod is the amount of time (in milliseconds) to wait after
+   * unlocking to allow allocations to be claimed
+   */
   uint256 public vestingPeriod = 0;
 
-  // Mapping of accounts to token allocations
+  /** Mapping of accounts to token allocations */
   mapping (address => uint256) public allocations;
 
-  // Mapping of tokens claimed by a beneficiary
+  /** Mapping of tokens claimed by a beneficiary */
   mapping (address => uint256) public claimed;
 
 
-  // Event to track that allocations have been set.
+  /** Event to track that allocations have been set. */
   event Locked();
 
-  // Event to track when the allocations are available to be claimed.
+  /** Event to track when the allocations are available to be claimed. */
   event Unlocked();
 
   /**
@@ -113,11 +115,10 @@ contract TokenVault is Recoverable {
   /**
    * @dev Function to set allocations for accounts. To be called by owner,
    * likely in a scripted fashion.
-   * @param _beneficiary The address to allocate token amount and bonus amount for
+   * @param _beneficiary The address to allocate tokens for
    * @param _amount The amount of tokens to be allocated and made available
-   * immediately on unlock
-   * @return true if allocation and bonus have been set for beneficiary, false
-   * if unable to
+   * once unlocked
+   * @return true if allocation has been set for beneficiary, false if not
    */
   function setAllocation(
     address _beneficiary,
@@ -132,9 +133,7 @@ contract TokenVault is Recoverable {
     require(_amount != 0); // Ensure we have non zero amount
     require(allocations[_beneficiary] == 0); // Ensure that we haven't yet set for this address
 
-    // Setting an allocation should
-    // * Add _amount to tokensAllocated
-    // * Add _amount to allocations for _beneficiary
+    // Update the storage
     allocations[_beneficiary] = allocations[_beneficiary].add(_amount);
     tokensAllocated = tokensAllocated.add(_amount);
 

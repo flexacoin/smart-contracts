@@ -2,7 +2,7 @@
  * This contract is based on the TokenMarketNet's UpgradeableToken contract. That
  * contract has been modified to work outside of that ecosystem.
  */
-pragma solidity ^0.4.21;
+pragma solidity 0.4.21;
 
 import "../zeppelin/contracts/token/ERC20/StandardToken.sol";
 import "./tokenmarket/UpgradeAgent.sol";
@@ -112,7 +112,7 @@ contract UpgradeableToken is StandardToken {
     // New upgradeAgent must be UpgradeAgent
     require(upgradeAgent.isUpgradeAgent());
     // Make sure that token supplies match in source and target
-    require(upgradeAgent.originalSupply() != totalSupply_);
+    require(upgradeAgent.originalSupply() == totalSupply_);
 
     emit UpgradeAgentSet(upgradeAgent);
   }

@@ -1,4 +1,4 @@
-import { ZERO_ADDRESS, logTitle, logError } from './helpers/common'
+import { ZERO_ADDRESS } from './helpers/common'
 import { assertRevert, EVMRevert } from './helpers/assertions'
 import { increaseTime } from './helpers/time'
 import { DECIMALS_FACTOR, tokens } from './helpers/flexacoin'

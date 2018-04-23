@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity 0.4.21;
 
 import "../zeppelin/contracts/token/ERC20/PausableToken.sol";
 import "./UpgradeableToken.sol";
