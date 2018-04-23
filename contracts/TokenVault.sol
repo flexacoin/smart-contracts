@@ -89,7 +89,7 @@ contract TokenVault is Recoverable {
 
 
   /**
-   * @dev Creates a TokenVault contract that stores a token distribution
+   * @dev Creates a TokenVault contract that stores a token distribution.
    * @param _token The address of the ERC20 token the Vault is for
    * @param _tokensToBeAllocated The amount of tokens that will be allocated
    * prior to locking
@@ -161,9 +161,6 @@ contract TokenVault is Recoverable {
 
     success = true;
   }
-
-  // event Print(uint256 lockedAt, uint256 added, uint256 ts);
-
 
   /**
    * @notice Unlock the tokens in the vault and allow tokens to be claimed by

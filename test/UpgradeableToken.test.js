@@ -1,7 +1,6 @@
 import { ZERO_ADDRESS } from './helpers/common'
 import { assertRevert, assertThrow } from './helpers/assertions'
-import { increaseTime } from './helpers/time'
-import { DECIMALS_FACTOR, tokens } from './helpers/flexacoin'
+import { tokens } from './helpers/flexacoin'
 
 const BigNumber = web3.BigNumber
 
