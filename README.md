@@ -2,8 +2,9 @@
 
 ## Requirements
 
-* [node](https://nodejs.org/en/) (>= 7)
-* [yarn](https://yarnpkg.com)
+* [Node](https://nodejs.org/en/) (>= 7)
+* [yarn](https://yarnpkg.com) package manager
+* [truffle](http://truffleframework.com/)
 
 ## Repo
 
@@ -23,6 +24,8 @@ yarn
 
 ## Testing
 
+Tests are written in javascript and use featuers of the truffle framework.
+
 Ensure `ganache-cli` is running. You only need to do this once.
 
 ```bash
@@ -33,6 +36,12 @@ Run all tests in the `/test` dir.
 
 ```bash
 yarn test
+```
+
+Run tests with coverage (using [solidity-coverage](https://github.com/sc-forks/solidity-coverage))
+
+```bash
+yarn run coverage
 ```
 
 **NOTE:** Tests use javascript's `async/await` syntax, so you will need Node >= 7 to run them.

@@ -9,9 +9,9 @@ const config = (module.exports = {
       port: 8545,
       network_id: '*',
     },
-    ganache: {
+    test: {
       host: 'localhost',
-      port: 7545,
+      port: 8545,
       network_id: '*',
     },
     coverage: {
@@ -21,7 +21,7 @@ const config = (module.exports = {
       gas: 0xfffffffffff,
       gasPrice: 0x01,
     },
-    test: {
+    ganache: {
       host: 'localhost',
       port: 8545,
       network_id: '*',
