@@ -4,19 +4,15 @@
   "description": "Flexacoin and Token Vault smart contracts",
   "author": "Zachary Kilgore @ Flexa Technologies, LLC",
   "private": true,
-  "keywords": [
-    "Ethereum",
-    "Flexacoin",
-    "Token Vault",
-    "Solidity"
-  ],
+  "keywords": ["Ethereum", "Flexacoin", "Token Vault", "Solidity"],
   "scripts": {
     "compile": "truffle compile",
     "migrate": "truffle migrate",
     "networks": "truffle networks",
-    "ganache": "ganache-cli --accounts=10 --mnemonic='candy maple cake sugar pudding cream honey rich smooth crumble sweet treat'",
+    "ganache":
+      "ganache-cli --accounts=10 --mnemonic='candy maple cake sugar pudding cream honey rich smooth crumble sweet treat'",
     "test": "truffle test --network test",
-    "coverage": "solidity-coverage"
+    "coverage": "./node_modules/.bin/solidity-coverage"
   },
   "devDependencies": {
     "babel-core": "6.26.0",
@@ -31,6 +27,7 @@
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "chai-bignumber": "^2.0.2",
+    "coveralls": "^3.0.0",
     "dotenv": "4.0.0",
     "dotenv-expand": "4.2.0",
     "eslint": "4.10.0",
@@ -49,10 +46,6 @@
     "truffle-hdwallet-provider": "^0.0.3"
   },
   "babel": {
-    "presets": [
-      "es2015",
-      "stage-2",
-      "stage-3"
-    ]
+    "presets": ["es2015", "stage-2", "stage-3"]
   }
 }
