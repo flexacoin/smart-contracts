@@ -7,10 +7,9 @@ import "../zeppelin/contracts/math/SafeMath.sol";
 
 
 /**
- * @title TokenVault Smart Contract
+ * @title TokenVault smart contract for handling token distribution and lockup.
  * @author Zachary Kilgore @ Flexa Technologies LLC
- * @dev Contract to handle token distribution and lockup.
- * TokenVault is Recoverable, which also means it is Ownable and the owner can
+ * @dev TokenVault is Recoverable, which also means it is Ownable and the owner can
  * reclaim any errant tokens or ether that is sent to the contract.
  */
 contract TokenVault is Recoverable {
@@ -23,10 +22,10 @@ contract TokenVault is Recoverable {
   /** The amount of tokens that should be allocated prior to locking the vault. */
   uint256 public tokensToBeAllocated;
 
-  /** The total amount of tokens allocated */
+  /** The total amount of tokens allocated by setAllocation. */
   uint256 public tokensAllocated;
 
-  /** Total amount of tokens claimed, including bonuses. */
+  /** Total amount of tokens claimed. */
   uint256 public totalClaimed;
 
   /** UNIX timestamp when the contract was locked. */
@@ -36,8 +35,8 @@ contract TokenVault is Recoverable {
   uint256 public unlockedAt;
 
   /**
-   * vestingPeriod is the amount of time (in milliseconds) to wait after
-   * unlocking to allow allocations to be claimed
+   * Amount of time, in seconds, after locking that must pass before the vault
+   * can be unlocked.
    */
   uint256 public vestingPeriod = 0;
 
@@ -48,10 +47,10 @@ contract TokenVault is Recoverable {
   mapping (address => uint256) public claimed;
 
 
-  /** Event to track that allocations have been set. */
+  /** Tracks that allocations have been set and the vault has been locked. */
   event Locked();
 
-  /** Event to track when the allocations are available to be claimed. */
+  /** Event to track when the vault has been unlocked. */
   event Unlocked();
 
   /**
@@ -62,26 +61,26 @@ contract TokenVault is Recoverable {
   event Allocated(address indexed beneficiary, uint256 amount);
 
   /**
-   * Event to track a beneficiary receiving an allotment of tokens
+   * Event to track a beneficiary receiving an allotment of tokens.
    * @param beneficiary Account that received tokens
    * @param amount Amount of tokens received
    */
   event Distributed(address indexed beneficiary, uint256 amount);
 
 
-  // Must not have been finalized or unlocked in order to be loading
+  /** Ensure the vault is able to be loaded */
   modifier vaultLoading() {
     require(lockedAt == 0);
     _;
   }
 
-  // Ensure the vault has been locked
+  /** Ensure the vault has been locked */
   modifier vaultLocked() {
     require(lockedAt > 0);
     _;
   }
 
-  // Ensure the vault has been unlocked
+  /** Ensure the vault has been unlocked */
   modifier vaultUnlocked() {
     require(unlockedAt > 0);
     _;
@@ -213,7 +212,7 @@ contract TokenVault is Recoverable {
   ****************/
 
   /**
-   * @dev Calculate the number of tokens a beneficiary can claim
+   * @dev Calculate the number of tokens a beneficiary can claim.
    * @return The amount of tokens available to be claimed
    */
   function _claimableTokens(address _beneficiary) private view returns(uint256 amount) {
@@ -221,10 +220,10 @@ contract TokenVault is Recoverable {
   }
 
   /**
-   * @dev Internal function to transfer an amount of tokens to a beneficiary
+   * @dev Internal function to transfer an amount of tokens to a beneficiary.
    * @param _beneficiary Account to transfer tokens to. The amount is derived from
-   * the claimable amount in the vault.
-   * @return true if tokens transferred successfully, false if not.
+   * the claimable amount in the vault
+   * @return true if tokens transferred successfully, false if not
    */
   function _transferTokens(address _beneficiary) private returns(bool success) {
     uint256 _amount = _claimableTokens(_beneficiary);

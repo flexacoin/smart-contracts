@@ -1,6 +1,7 @@
 /**
- * This contract is based on the TokenMarketNet's UpgradeableToken contract. That
- * contract has been modified to work outside of that ecosystem.
+ * This contract is based on the TokenMarketNet's UpgradeableToken contract. The
+ * contract has been minimally modified to work outside of that ecosystem, as
+ * well as refactored for style.
  */
 pragma solidity 0.4.21;
 
@@ -8,9 +9,17 @@ import "../zeppelin/contracts/token/ERC20/StandardToken.sol";
 import "./tokenmarket/UpgradeAgent.sol";
 
 /**
- * @title A token upgrade mechanism where users can opt-in amount of tokens to
- * the next smart contract revision.
- * @dev First envisioned by Golem and Lunyr projects.
+ * @title UpgradeableToken is a token upgrade mechanism providing token owners
+ * the ability to opt-in to a future, "upgraded", token smart contract.
+ *
+ * To upgrade the token, first the upgrade master sets an upgrade agent
+ * contract. This upgrade agent must satisfy the UpgradeAgent interface, meaning
+ * it has a method `upgradeFrom` that is responsible for creating an accounts
+ * new tokens. Then the token owners are responsible for upgrading their
+ * tokens through this contracts `upgrade` method.
+ *
+ * @author Zachary Kilgore @ Flexa Technologies LLC
+ * @dev First envisioned by Golem and Lunyr projects
  */
 contract UpgradeableToken is StandardToken {
 
@@ -66,7 +75,8 @@ contract UpgradeableToken is StandardToken {
   }
 
   /**
-   * @notice Allow the token holder to upgrade some of their tokens to a new contract.
+   * @notice Allow the token holder to upgrade some of their tokens to the new
+   * contract.
    * @param _value The amount of tokens to upgrade
    */
   function upgrade(uint256 _value) public {
@@ -97,7 +107,7 @@ contract UpgradeableToken is StandardToken {
   }
 
   /**
-   * @notice Set an upgrade agent contract to process the upgrade
+   * @notice Set an upgrade agent contract to process the upgrade.
    * @dev The _upgradeAgent contract address must satisfy the UpgradeAgent
    * interface
    * @param _upgradeAgent The address of the new UpgradeAgent smart contract
@@ -128,9 +138,9 @@ contract UpgradeableToken is StandardToken {
   }
 
   /**
-   * Child contract can enable to provide the condition when the upgrade can begun.
+   * @dev Child contract can enable to provide the condition when the upgrade can
+   * begin.
    */
-
   function canUpgrade() public view returns(bool) {
     return true;
   }

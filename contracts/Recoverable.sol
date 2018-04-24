@@ -6,8 +6,9 @@ import "../zeppelin/contracts/ownership/Claimable.sol";
 
 /**
  * @title Recoverable is a contract to ensure ether and tokens can be recovered
- * by the owner of a contract
- * @dev This will prevent any accidental loss of tokens and ether
+ * by the owner of a contract.
+ * @author Zachary Kilgore @ Flexa Technologies LLC
+ * @dev This will prevent any accidental loss of tokens and ether.
  */
 contract Recoverable is CanReclaimToken, Claimable {
   using SafeERC20 for ERC20Basic;
