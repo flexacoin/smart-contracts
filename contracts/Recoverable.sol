@@ -5,16 +5,17 @@ import "../zeppelin/contracts/ownership/Claimable.sol";
 
 
 /**
- * @title Recoverable is a contract to ensure ether and tokens can be recovered
- * by the owner of a contract.
+ * @title Recoverable ensures ether and ERC20 tokens can be claimed by the
+ * owner of the contract.
  * @author Zachary Kilgore @ Flexa Technologies LLC
- * @dev This will prevent any accidental loss of tokens and ether.
+ * @dev Prevents accidental loss of tokens and ether erroneously sent to
+ * this contract
  */
 contract Recoverable is CanReclaimToken, Claimable {
   using SafeERC20 for ERC20Basic;
 
   /**
-   * @dev Transfer all Ether held by the contract to the owner.
+   * @dev Transfer all ether held by the contract to the contract owner.
    */
   function reclaimEther() external onlyOwner {
     owner.transfer(address(this).balance);

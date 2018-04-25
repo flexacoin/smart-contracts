@@ -3,7 +3,7 @@ pragma solidity 0.4.21;
 import "../UpgradeableToken.sol";
 
 /**
- * @title Mock implementation of an UpgradeAgent for testing
+ * @title Mock implementation of an UpgradeableToken (for testing).
  */
 contract UpgradeableTokenMock is UpgradeableToken {
 

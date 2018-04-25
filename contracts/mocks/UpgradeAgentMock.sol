@@ -3,7 +3,7 @@ pragma solidity 0.4.21;
 import "../tokenmarket/UpgradeAgent.sol";
 
 /**
- * @title Mock implementation of an UpgradeAgent for testing
+ * @title Mock implementation of an UpgradeAgent for testing.
  */
 contract UpgradeAgentMock is UpgradeAgent {
 
@@ -18,7 +18,7 @@ contract UpgradeAgentMock is UpgradeAgent {
   }
 
   /**
-   * @dev Simple implementation of the upgradeFrom function
+   * @dev Basic implementation of the upgradeFrom function.
    */
   function upgradeFrom(address _from, uint256 _value) public {
     newBalances[_from] = _value;

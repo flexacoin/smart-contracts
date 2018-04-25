@@ -6,9 +6,10 @@ import "./Recoverable.sol";
 
 
 /**
- * @title The Flexacoin ERC20 Compliant Token Contract
+ * @title Flexacoin ERC20 Compliant Token Contract
  * @author Zachary Kilgore @ Flexa Technologies LLC
- * @dev Flexacoin is a standard ERC20 token that has the additional capabilities:
+ * @dev Flexacoin is a standard ERC20 token that has the following additional
+ * properties:
  *
  * - Claimable: Owned contract where the transfer of ownership must be claimed
  * by the new owner prior to the old owner being removed.
@@ -28,8 +29,8 @@ contract Flexacoin is PausableToken, UpgradeableToken, Recoverable {
 
 
   /**
-    * @dev Flexacoin contract constructor. Assigns all tokens to contract
-    * creator.
+    * @notice Flexacoin (ERC20 Token) contract constructor.
+    * @dev Assigns all tokens to contract creator.
     */
   function Flexacoin() public UpgradeableToken(msg.sender) {
     totalSupply_ = INITIAL_SUPPLY;
@@ -38,7 +39,7 @@ contract Flexacoin is PausableToken, UpgradeableToken, Recoverable {
   }
 
   /**
-   * @dev Allow upgrade agent functionality only if functionality is not paused
+   * @dev Allow UpgradeableToken functionality only if contract is not paused.
    */
   function canUpgrade() public view returns(bool) {
     return !paused && super.canUpgrade();

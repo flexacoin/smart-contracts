@@ -4,8 +4,8 @@ import "../Recoverable.sol";
 
 
 /**
- * @title PayableRecoverableMock mocks a payable contract with Recoverable
- * to test the recovery of ether.
+ * @title PayableRecoverableMock mocks a payable contract that inherits
+ * Recoverable to test the recovery of ether.
  */
 contract PayableRecoverableMock is Recoverable {
 

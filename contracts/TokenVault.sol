@@ -7,22 +7,23 @@ import "../zeppelin/contracts/math/SafeMath.sol";
 
 
 /**
- * @title TokenVault smart contract for handling token distribution and lockup.
+ * @title TokenVault smart contract for validating and handling token distribution
+ * and lockup.
  * @author Zachary Kilgore @ Flexa Technologies LLC
- * @dev TokenVault is Recoverable, which also means it is Ownable and the owner can
- * reclaim any errant tokens or ether that is sent to the contract.
+ * @dev TokenVault is Recoverable, which also means it is Ownable and the owner
+ * can reclaim any errant tokens or ether that is sent to the contract.
  */
 contract TokenVault is Recoverable {
   using SafeMath for uint256;
   using SafeERC20 for ERC20Basic;
 
-  /** The ERC20 token distribution being managed. */
+  /** The ERC20 token distribution the vault manages. */
   ERC20Basic public token;
 
   /** The amount of tokens that should be allocated prior to locking the vault. */
   uint256 public tokensToBeAllocated;
 
-  /** The total amount of tokens allocated by setAllocation. */
+  /** The total amount of tokens allocated through setAllocation. */
   uint256 public tokensAllocated;
 
   /** Total amount of tokens claimed. */
@@ -40,14 +41,14 @@ contract TokenVault is Recoverable {
    */
   uint256 public vestingPeriod = 0;
 
-  /** Mapping of accounts to token allocations */
+  /** Mapping of accounts to token allocations. */
   mapping (address => uint256) public allocations;
 
-  /** Mapping of tokens claimed by a beneficiary */
+  /** Mapping of tokens claimed by a beneficiary. */
   mapping (address => uint256) public claimed;
 
 
-  /** Tracks that allocations have been set and the vault has been locked. */
+  /** Event to track that allocations have been set and the vault has been locked. */
   event Locked();
 
   /** Event to track when the vault has been unlocked. */
@@ -68,19 +69,19 @@ contract TokenVault is Recoverable {
   event Distributed(address indexed beneficiary, uint256 amount);
 
 
-  /** Ensure the vault is able to be loaded */
+  /** Ensure the vault is able to be loaded. */
   modifier vaultLoading() {
     require(lockedAt == 0);
     _;
   }
 
-  /** Ensure the vault has been locked */
+  /** Ensure the vault has been locked. */
   modifier vaultLocked() {
     require(lockedAt > 0);
     _;
   }
 
-  /** Ensure the vault has been unlocked */
+  /** Ensure the vault has been unlocked. */
   modifier vaultUnlocked() {
     require(unlockedAt > 0);
     _;
@@ -88,8 +89,8 @@ contract TokenVault is Recoverable {
 
 
   /**
-   * @dev Creates a TokenVault contract that stores a token distribution.
-   * @param _token The address of the ERC20 token the Vault is for
+   * @notice Creates a TokenVault contract that stores a token distribution.
+   * @param _token The address of the ERC20 token the vault is for
    * @param _tokensToBeAllocated The amount of tokens that will be allocated
    * prior to locking
    * @param _vestingPeriod The amount of time, in seconds, that must pass
@@ -112,8 +113,8 @@ contract TokenVault is Recoverable {
   }
 
   /**
-   * @dev Function to set allocations for accounts. To be called by owner,
-   * likely in a scripted fashion.
+   * @notice Function to set allocations for accounts.
+   * @dev To be called by owner, likely in a scripted fashion.
    * @param _beneficiary The address to allocate tokens for
    * @param _amount The amount of tokens to be allocated and made available
    * once unlocked
@@ -142,32 +143,28 @@ contract TokenVault is Recoverable {
   }
 
   /**
-   * @notice Finalize setting of allocations and begin the lock up period.
-   * @dev Should be called after all allocations have been recorded.
-   * @return true if the vault has been successfully locked, false if it has not
+   * @notice Finalize setting of allocations and begin the lock up (vesting) period.
+   * @dev Should be called after every allocation has been set.
+   * @return true if the vault has been successfully locked
    */
-  function lock() public onlyOwner vaultLoading returns(bool success) {
+  function lock() external onlyOwner vaultLoading {
     // Ensure we have allocated all we expected to
     require(tokensAllocated == tokensToBeAllocated);
-    // Ensure vault has required balance of tokens to distribute. Needs to have
-    // enough for the bonus as well.
+    // Ensure vault has required balance of tokens to distribute.
     require(token.balanceOf(address(this)) == tokensAllocated);
 
     // solium-disable-next-line security/no-block-members
     lockedAt = block.timestamp;
 
     emit Locked();
-
-    success = true;
   }
 
   /**
-   * @notice Unlock the tokens in the vault and allow tokens to be claimed by
-   * their owners.
+   * @notice Unlock the vault, allowing the tokens to be distributed to their
+   * beneficiaries.
    * @dev Must be locked prior to unlocking. Also, the vestingPeriod must be up.
-   * @return true if executed, false if not
    */
-  function unlock() public onlyOwner vaultLocked returns(bool success) {
+  function unlock() external onlyOwner vaultLocked {
     require(unlockedAt == 0); // Can only unlock once
     // solium-disable-next-line security/no-block-members
     require(block.timestamp >= lockedAt.add(vestingPeriod)); // Lock up must be over
@@ -176,14 +173,12 @@ contract TokenVault is Recoverable {
     unlockedAt = block.timestamp;
 
     emit Unlocked();
-
-    success = true;
   }
 
   /**
-   * @notice Claim whatever tokens account are available to be claimed by the caller.
+   * @notice Claim whatever tokens account are allocated to the sender.
    * @dev Can only be called once contract has been unlocked.
-   * @return true if balance successfully distribute to sender, false otherwise.
+   * @return true if balance successfully distributed to sender, false otherwise
    */
   function claim() public vaultUnlocked returns(bool success) {
     return _transferTokens(msg.sender);
@@ -193,8 +188,9 @@ contract TokenVault is Recoverable {
    * @notice Utility function to actually transfer allocated tokens to their
    * owners.
    * @dev Can only be called by the owner. To be used in case an investor would
-   * like their tokens transferred directly for them. Should be scripted.
-   * @param _beneficiary Account to transfer tokens to
+   * like their tokens transferred directly for them. Most likely by a script.
+   * @param _beneficiary Address to transfer tokens to
+   * @return true if balance transferred to beneficiary, false otherwise
    */
   function transferFor(
     address _beneficiary
@@ -207,25 +203,26 @@ contract TokenVault is Recoverable {
     return _transferTokens(_beneficiary);
   }
 
-  /***************
-      Private
-  ****************/
+  /****************
+   *** Internal ***
+   ****************/
 
   /**
    * @dev Calculate the number of tokens a beneficiary can claim.
+   * @param _beneficiary Address to check for
    * @return The amount of tokens available to be claimed
    */
-  function _claimableTokens(address _beneficiary) private view returns(uint256 amount) {
+  function _claimableTokens(address _beneficiary) internal view returns(uint256 amount) {
     return allocations[_beneficiary].sub(claimed[_beneficiary]);
   }
 
   /**
    * @dev Internal function to transfer an amount of tokens to a beneficiary.
-   * @param _beneficiary Account to transfer tokens to. The amount is derived from
-   * the claimable amount in the vault
+   * @param _beneficiary Account to transfer tokens to. The amount is derived
+   * from the claimable amount in the vault
    * @return true if tokens transferred successfully, false if not
    */
-  function _transferTokens(address _beneficiary) private returns(bool success) {
+  function _transferTokens(address _beneficiary) internal returns(bool success) {
     uint256 _amount = _claimableTokens(_beneficiary);
     require(_amount > 0);
 
