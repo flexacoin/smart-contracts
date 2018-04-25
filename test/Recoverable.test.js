@@ -1,9 +1,8 @@
 import { assertRevert } from './helpers/assertions'
 import { tokens } from './helpers/flexacoin'
 
-const BigNumber = web3.BigNumber
-
-const should = require('chai')
+const { BigNumber } = web3
+require('chai')
   .use(require('chai-as-promised'))
   .use(require('chai-bignumber')(BigNumber))
   .should()

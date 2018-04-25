@@ -1,11 +1,10 @@
 import { tokens } from './helpers/flexacoin'
 
+const { BigNumber } = web3
 require('chai')
   .use(require('chai-as-promised'))
   .use(require('chai-bignumber')(BigNumber))
   .should()
-
-const { BigNumber } = web3
 
 const Flexacoin = artifacts.require('Flexacoin')
 

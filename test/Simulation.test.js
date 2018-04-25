@@ -1,12 +1,11 @@
 import path from 'path'
 import { increaseTime } from './helpers/time'
 
+const { BigNumber } = web3
 require('chai')
   .use(require('chai-as-promised'))
   .use(require('chai-bignumber')(BigNumber))
   .should()
-
-const { BigNumber } = web3
 
 // import { deployContracts, processDistribution } from './helpers/deploy'
 // import FlexaContractManager from './helpers/deploy'
