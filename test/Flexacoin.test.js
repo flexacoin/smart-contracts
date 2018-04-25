@@ -1,11 +1,11 @@
 import { tokens } from './helpers/flexacoin'
 
-const BigNumber = web3.BigNumber
-
-const should = require('chai')
+require('chai')
   .use(require('chai-as-promised'))
   .use(require('chai-bignumber')(BigNumber))
   .should()
+
+const { BigNumber } = web3
 
 const Flexacoin = artifacts.require('Flexacoin')
 
@@ -15,7 +15,7 @@ const NAME = 'Flexacoin'
 const DECIMALS = 18
 const INITIAL_SUPPLY = tokens(100000000000)
 
-contract('Flexacoin', function([_, owner, accountOne]) {
+contract('Flexacoin', function([_, owner]) {
   beforeEach(async function() {
     this.flexacoin = await Flexacoin.new({ from: owner })
   })

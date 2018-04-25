@@ -1,7 +1,7 @@
 require('babel-register')
 require('babel-polyfill')
 
-const config = (module.exports = {
+const config = {
   migrations_directory: './migrations',
   networks: {
     development: {
@@ -43,6 +43,6 @@ const config = (module.exports = {
       runs: 500,
     },
   },
-})
+}
 
 module.exports = config

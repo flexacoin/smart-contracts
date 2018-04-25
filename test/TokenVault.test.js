@@ -3,12 +3,12 @@ import { assertRevert } from './helpers/assertions'
 import { increaseTime } from './helpers/time'
 import { tokens } from './helpers/flexacoin'
 
-const BigNumber = web3.BigNumber
-
-const should = require('chai')
+require('chai')
   .use(require('chai-as-promised'))
   .use(require('chai-bignumber')(BigNumber))
   .should()
+
+const { BigNumber } = web3
 
 const Flexacoin = artifacts.require('Flexacoin')
 const TokenVault = artifacts.require('TokenVault')
@@ -209,7 +209,7 @@ contract('TokenVault', function([
           })
 
           it('updates locked time', async function() {
-            const tx = await this.vault.lock({ from })
+            await this.vault.lock({ from })
             const lockedAt = await this.vault.lockedAt()
 
             lockedAt.should.be.bignumber.gt(0)

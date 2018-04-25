@@ -2,12 +2,12 @@ import { ZERO_ADDRESS } from './helpers/common'
 import { assertRevert, assertThrow } from './helpers/assertions'
 import { tokens } from './helpers/flexacoin'
 
-const BigNumber = web3.BigNumber
-
-const should = require('chai')
+require('chai')
   .use(require('chai-as-promised'))
   .use(require('chai-bignumber')(BigNumber))
   .should()
+
+const { BigNumber } = web3
 
 const UpgradeableTokenMock = artifacts.require('UpgradeableTokenMock')
 const UpgradeAgentMock = artifacts.require('UpgradeAgentMock')

@@ -1,7 +1,12 @@
 import path from 'path'
-import { assertRevert } from './helpers/assertions'
 import { increaseTime } from './helpers/time'
-import { tokens } from './helpers/flexacoin'
+
+require('chai')
+  .use(require('chai-as-promised'))
+  .use(require('chai-bignumber')(BigNumber))
+  .should()
+
+const { BigNumber } = web3
 
 // import { deployContracts, processDistribution } from './helpers/deploy'
 // import FlexaContractManager from './helpers/deploy'
@@ -11,17 +16,10 @@ import csv from 'fast-csv'
 const Flexacoin = artifacts.require('Flexacoin')
 const TokenVault = artifacts.require('TokenVault')
 
-const BigNumber = web3.BigNumber
-
-const should = require('chai')
-  .use(require('chai-as-promised'))
-  .use(require('chai-bignumber')(BigNumber))
-  .should()
-
-const parseGas = txHash => {
-  const { gasUsed } = web3.eth.getTransactionReceipt(txHash)
-  return gasUsed
-}
+// const parseGas = txHash => {
+//   const { gasUsed } = web3.eth.getTransactionReceipt(txHash)
+//   return gasUsed
+// }
 
 // function Log() {
 //   function line() {
@@ -72,13 +70,12 @@ export default class FlexaContractManager {
       fs
         .createReadStream(filename)
         .pipe(csv())
-        .on('data', function(data) {
+        .on('data', data => {
           const [address, value, bonus] = data
           distribution.push({ address, value, bonus })
         })
-        .on('end', function() {
-          resolve(distribution)
-        })
+        .on('end', () => resolve(distribution))
+        .on('error', () => reject())
     })
   }
 
@@ -209,22 +206,16 @@ export default class FlexaContractManager {
 
     const {
       owner,
+      tokenVault,
+      bonusVault,
       vaultConfig: { tokensToBeAllocated, bonusToBeAllocated },
     } = this
 
     this.print(`Preparing Token Vault`)
-    await this._transfer(
-      this.tokenVault.address,
-      this.owner,
-      tokensToBeAllocated
-    )
+    await this._transfer(tokenVault.address, owner, tokensToBeAllocated)
 
     this.print(`Preparing Bonus Vault`)
-    await this._transfer(
-      this.bonusVault.address,
-      this.owner,
-      bonusToBeAllocated
-    )
+    await this._transfer(bonusVault.address, owner, bonusToBeAllocated)
   }
 
   _transfer = async (to, from, value) => {
@@ -242,9 +233,10 @@ export default class FlexaContractManager {
   }
 
   lockVaults = async () => {
-    const { owner } = this
-    await this.tokenVault.lock({ from: owner })
-    await this.bonusVault.lock({ from: owner })
+    const { owner, tokenVault, bonusVault } = this
+
+    await tokenVault.lock({ from: owner })
+    await bonusVault.lock({ from: owner })
   }
 
   sendTokens = async () => {
@@ -319,12 +311,11 @@ export default class FlexaContractManager {
   }
 
   printResults = () => {
-    const gasUsed = {
-      contracts: 0,
-      transfers: 0,
-      allocation: 0,
-    }
-
+    // const gasUsed = {
+    //   contracts: 0,
+    //   transfers: 0,
+    //   allocation: 0,
+    // }
     // console.log('Gas Used: Contracts', gasUsed.contracts)
     // console.log('Gas Used: Transfers', gasUsed.transfers)
     // console.log('Gas Used: Allocation', gasUsed.allocation)
@@ -332,7 +323,8 @@ export default class FlexaContractManager {
     const { transactionHashes } = this
 
     this.printTitle('Tx Hashes')
-    Array.forEach(transactionHashes, v => console.log(v))
+
+    transactionHashes.forEach(v => console.log(v))
   }
 }
 

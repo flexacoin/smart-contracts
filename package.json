@@ -44,8 +44,5 @@
     "truffle": "^4.1.6",
     "truffle-contract": "^3.0.4",
     "truffle-hdwallet-provider": "^0.0.3"
-  },
-  "babel": {
-    "presets": ["es2015", "stage-2", "stage-3"]
   }
 }
