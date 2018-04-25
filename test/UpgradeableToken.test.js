@@ -155,7 +155,7 @@ contract('UpgradeableToken', function([
 
               logs.length.should.equal(1)
               logs[0].event.should.equal('UpgradeAgentSet')
-              logs[0].args.agent.should.equal(this.upgradeAgent.address)
+              logs[0].args.upgradeAgent.should.equal(this.upgradeAgent.address)
             })
 
             describe('when setting another valid UpgradeAgent', function() {
@@ -176,7 +176,9 @@ contract('UpgradeableToken', function([
 
                 logs.length.should.equal(1)
                 logs[0].event.should.equal('UpgradeAgentSet')
-                logs[0].args.agent.should.equal(this.upgradeAgent2.address)
+                logs[0].args.upgradeAgent.should.equal(
+                  this.upgradeAgent2.address
+                )
               })
             })
           })

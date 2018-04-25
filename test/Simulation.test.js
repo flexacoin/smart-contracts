@@ -4,7 +4,7 @@ import { increaseTime } from './helpers/time'
 import { tokens } from './helpers/flexacoin'
 
 // import { deployContracts, processDistribution } from './helpers/deploy'
-// import FlexaSmartContracts from './helpers/deploy'
+// import FlexaContractManager from './helpers/deploy'
 import fs from 'fs'
 import csv from 'fast-csv'
 
@@ -52,17 +52,19 @@ const parseGas = txHash => {
 /**
  * Object with API to manage Flexa smart contracts operation.
  */
-export default class FlexaSmartContracts {
+export default class FlexaContractManager {
   static SYMBOL = 'FXC'
   static NAME = 'Flexacoin'
   static DECIMALS = 18
-  static DECIMALS_FACTOR = new BigNumber('10').pow(FlexaSmartContracts.DECIMALS)
+  static DECIMALS_FACTOR = new BigNumber('10').pow(
+    FlexaContractManager.DECIMALS
+  )
 
   // Helper function to normalize human readable values to token values with
   // decimals applied
-  static toTokens = num => num * FlexaSmartContracts.DECIMALS_FACTOR
+  static toTokens = num => num * FlexaContractManager.DECIMALS_FACTOR
 
-  static INITIAL_SUPPLY = FlexaSmartContracts.toTokens(100000000000)
+  static INITIAL_SUPPLY = FlexaContractManager.toTokens(100000000000)
 
   static parseDistributionCSV = filename => {
     const distribution = []
@@ -81,7 +83,7 @@ export default class FlexaSmartContracts {
   }
 
   /**
-   * Create a new FlexaSmartContracts instance with the following parameters
+   * Create a new FlexaContractManager instance with the following parameters
    *
    * @param {object} web3 - Web3 instance
    * @param {string} owner - Address of the contract owner/deployer
@@ -107,7 +109,9 @@ export default class FlexaSmartContracts {
 
   parseDistribution = async filename => {
     this.printTitle('Parse Distribution')
-    this.distribution = await FlexaSmartContracts.parseDistributionCSV(filename)
+    this.distribution = await FlexaContractManager.parseDistributionCSV(
+      filename
+    )
     this.print(`Done parsing ${filename}`)
   }
 
@@ -131,7 +135,7 @@ export default class FlexaSmartContracts {
       'Token Vault',
       await TokenVault.new(
         this.flexacoin.address,
-        FlexaSmartContracts.toTokens(tokensToBeAllocated),
+        FlexaContractManager.toTokens(tokensToBeAllocated),
         0, // tokenVault has no vesting period. Can be unlocked immediately after being locked
         {
           from: owner,
@@ -148,7 +152,7 @@ export default class FlexaSmartContracts {
       'Bonus Vault',
       await TokenVault.new(
         this.flexacoin.address,
-        FlexaSmartContracts.toTokens(bonusToBeAllocated),
+        FlexaContractManager.toTokens(bonusToBeAllocated),
         bonusVestingPeriod,
         {
           from: owner,
@@ -171,13 +175,12 @@ export default class FlexaSmartContracts {
   allocateDistribution = async () => {
     this.printTitle('Vault Distribution')
 
-    Array.forEach(
+    await Array.forEach(
       this.distribution,
-      function({ address, value, bonus }) {
+      ({ address, value, bonus }) => {
         this.printAllocation(address, value, bonus)
 
         this.allocate(this.tokenVault, address, value)
-
         this.allocate(this.bonusVault, address, bonus)
       },
       this
@@ -189,9 +192,9 @@ export default class FlexaSmartContracts {
 
     const result = await vault.setAllocation(
       address,
-      FlexaSmartContracts.toTokens(value),
+      FlexaContractManager.toTokens(value),
       {
-        from: this.owner,
+        from: owner,
       }
     )
 
@@ -201,31 +204,39 @@ export default class FlexaSmartContracts {
     return result
   }
 
-  prepareVaults = () => {
+  prepareVaults = async () => {
     this.printTitle('Preparing Token and Bonus Vaults')
 
-    const { tokensToBeAllocated, bonusToBeAllocated } = this.vaultConfig
-    this.print(`Transferring ${tokensToBeAllocated} to Token Vault`)
-    this.ownerTransferTokens(
+    const {
+      owner,
+      vaultConfig: { tokensToBeAllocated, bonusToBeAllocated },
+    } = this
+
+    this.print(`Preparing Token Vault`)
+    await this._transfer(
       this.tokenVault.address,
-      FlexaSmartContracts.toTokens(tokensToBeAllocated)
+      this.owner,
+      tokensToBeAllocated
     )
 
-    this.print(`Transferring ${bonusToBeAllocated} to Bonus Vault`)
-    this.ownerTransferTokens(
+    this.print(`Preparing Bonus Vault`)
+    await this._transfer(
       this.bonusVault.address,
-      FlexaSmartContracts.toTokens(bonusToBeAllocated)
+      this.owner,
+      bonusToBeAllocated
     )
   }
 
-  // Transfer the initial supply to the token vault
-  ownerTransferTokens = async (to, value) => {
-    const { owner } = this
-    const result = await this.flexacoin.transfer(to, value, {
-      from: owner,
-    })
+  _transfer = async (to, from, value) => {
+    this.print(`Transferring ${value} tokens to ${to}`)
 
-    // deploymentLog.transactions.push(tx)
+    const result = await this.flexacoin.transfer(
+      to,
+      FlexaContractManager.toTokens(value),
+      { from }
+    )
+
+    this._pushReceipt(result.receipt)
 
     return result
   }
@@ -237,18 +248,39 @@ export default class FlexaSmartContracts {
   }
 
   sendTokens = async () => {
-    const { owner } = this
-    this.printTitle('Moving Tokens')
+    this.printTitle('Sending Tokens')
 
-    Array.forEach(
+    await Array.forEach(
       this.distribution,
-      async function({ address, value }) {
+      ({ address, value }) => {
         this.print(`Sending ${value} tokens to ${address}`)
-        const tx = await this.tokenVault.transferFor(address, { from: owner })
-        this._pushReceipt(tx.receipt)
+        this._transferFor(this.tokenVault, address)
       },
       this
     )
+  }
+
+  sendBonuses = async () => {
+    this.printTitle('Sending Bonus Tokens')
+
+    await Array.forEach(
+      this.distribution,
+      ({ address, _, bonus }) => {
+        this.print(`Sending ${bonus} bonus tokens to ${address}`)
+        this._transferFor(this.bonusVault, address)
+      },
+      this
+    )
+  }
+
+  _transferFor = async (vault, address) => {
+    const { owner } = this
+
+    const result = await vault.transferFor(address, { from: owner })
+
+    this._pushReceipt(result.receipt)
+
+    return result
   }
 
   _pushTx = txHash => {
@@ -314,17 +346,7 @@ export default class FlexaSmartContracts {
  * - Bonus vault vesting lock up and unlocking
 */
 
-// * coinbase = '0x627306090abab3a6e1400e9345bc60c78a8bef57'
-// * owner = '0xf17f52151ebef6c7334fad080c5704d77216b732'
-// * multisig = '0xc5fdf4076b8f3a5357c5e395ab970b5b54098fef'
-
 contract('Deployment Simulation', function([_, owner]) {
-  // Flexacoin token properties
-  // const SYMBOL = 'FXC'
-  // const NAME = 'Flexacoin'
-  // const DECIMALS = 18
-  // const INITIAL_SUPPLY = 100000000000
-
   const tokensToBeAllocated = 36703064000
   const bonusToBeAllocated = 31082532000
   const bonusVestingPeriod = 180 * 24 * 60 * 60 // 180 days * 24 hours * 60 minutes * 60 seconds
@@ -334,7 +356,7 @@ contract('Deployment Simulation', function([_, owner]) {
     bonusVestingPeriod,
   }
 
-  const flexaDeployment = new FlexaSmartContracts(
+  const flexaDeployment = new FlexaContractManager(
     web3,
     owner,
     Flexacoin,
@@ -348,45 +370,68 @@ contract('Deployment Simulation', function([_, owner]) {
 
   before(async function() {
     await flexaDeployment.deployContracts()
-    this.flexacoin = flexaDeployment.flexacoin
-    this.tokenVault = flexaDeployment.tokenVault
-    this.bonusVault = flexaDeployment.bonusVault
-
-    await flexaDeployment.allocateDistribution()
-
-    await flexaDeployment.prepareVaults()
   })
 
-  it('is prepared correctly', async function() {
-    const tokenVaultBalance = await flexaDeployment.flexacoin.balanceOf(
-      flexaDeployment.tokenVault.address
-    )
-    console.log('TokenVault Balance', tokenVaultBalance.toFixed())
+  describe('when contracts are deployed', function() {
+    describe('when preparing the vaults', function() {
+      before(async function() {
+        await flexaDeployment.allocateDistribution()
+        await flexaDeployment.prepareVaults()
+      })
 
-    console.log(
-      'TokenVault: totalAllocated',
-      (await flexaDeployment.tokenVault.tokensAllocated()).toFixed()
-    )
+      it('is prepared correctly', async function() {
+        const tokenVaultBalance = await flexaDeployment.flexacoin.balanceOf(
+          flexaDeployment.tokenVault.address
+        )
+        const tokensAllocated = await flexaDeployment.tokenVault.tokensAllocated()
+        tokensAllocated.should.bignumber.equal(tokenVaultBalance)
 
-    const bonusVaultBalance = await flexaDeployment.flexacoin.balanceOf(
-      flexaDeployment.bonusVault.address
-    )
-    console.log('BonusVault Balance', bonusVaultBalance.toFixed())
+        const bonusVaultBalance = await flexaDeployment.flexacoin.balanceOf(
+          flexaDeployment.bonusVault.address
+        )
+        const bonusAllocated = await flexaDeployment.bonusVault.tokensAllocated()
+        bonusAllocated.should.bignumber.equal(bonusVaultBalance)
+      })
+    })
+
+    describe('when vaults are prepared', function() {
+      it('vaults can be locked', async function() {
+        await flexaDeployment.lockVaults()
+      })
+    })
+
+    describe('when vaults have been locked', function() {
+      it('Token Vault can be unlocked', async function() {
+        await flexaDeployment.tokenVault.unlock({ from: owner })
+      })
+    })
+
+    describe('when token vault has been unlocked', function() {
+      it('tokens can be transferred to investors', async function() {
+        await flexaDeployment.sendTokens()
+      })
+    })
+
+    describe(`when ${bonusVestingPeriod} has passed`, function() {
+      before(async function() {
+        await increaseTime(bonusVestingPeriod)
+      })
+
+      it('Bonus Vault can be unlocked', async function() {
+        await flexaDeployment.bonusVault.unlock({ from: owner })
+      })
+
+      it('bonuses can be transferred to investors', async function() {
+        await flexaDeployment.sendBonuses()
+      })
+    })
   })
 
-  it('vaults can be locked', async function() {
-    await flexaDeployment.lockVaults()
-  })
-
-  it('tokenVault can be unlocked', async function() {
-    await flexaDeployment.tokenVault.unlock({ from: owner })
-  })
-
-  it('tokens can be transferred', async function() {
-    await flexaDeployment.sendTokens()
-  })
-
-  it('results can be printed', function() {
+  after(async function() {
     flexaDeployment.printResults()
+
+    // Fast forward to clear the deck for the next tests
+    const oneHour = 1 * 60 * 60
+    await increaseTime(oneHour)
   })
 })

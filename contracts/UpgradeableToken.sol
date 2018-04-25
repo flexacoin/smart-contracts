@@ -12,7 +12,7 @@ import "./tokenmarket/UpgradeAgent.sol";
 /**
  * @title UpgradeableToken provides a token upgrade mechanism that, after
  * adequete preparation, allows token owners to opt-in to a new upgraded token.
- * @notice To upgrade the token, upgrade master (owner) sets the upgradeAgent
+ * @notice To upgrade the token, the upgrade master (owner) sets the upgradeAgent
  * contract. This upgradeAgent must satisfy the UpgradeAgent interface, meaning
  * it has a method `upgradeFrom` that is responsible for creating new tokens for
  * a user. Once the agent is set, the token holders upgrade their tokens

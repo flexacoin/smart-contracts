@@ -72,7 +72,7 @@ contract('TokenVault', function([
   describe('setAllocation', function() {
     const amount = tokens(10)
 
-    describe('when caller is not the owner', async function() {
+    describe('when caller is not the owner', function() {
       const from = accountOne
 
       it('reverts', async function() {
@@ -133,7 +133,7 @@ contract('TokenVault', function([
             tokensAllocated.should.bignumber.equal(tokens(10))
           })
 
-          describe('when account already has allocation', async function() {
+          describe('when account already has allocation', function() {
             beforeEach(async function() {
               await this.vault.setAllocation(beneficiary, amount, {
                 from,
@@ -148,7 +148,7 @@ contract('TokenVault', function([
               )
             })
 
-            describe('when allocating for another account', async function() {
+            describe('when allocating for another account', function() {
               it('updates total tokens allocated to 20', async function() {
                 await this.vault.setAllocation(accountTwo, amount, {
                   from,
@@ -443,7 +443,7 @@ contract('TokenVault', function([
             tx = await this.vault.transferFor(beneficiary, { from })
           })
 
-          it('emits Distributed event', async function() {
+          it('emits Distributed event', function() {
             const { logs } = tx
 
             logs.length.should.equal(1)
@@ -478,7 +478,7 @@ contract('TokenVault', function([
               tx = await this.vault.transferFor(beneficiary, { from })
             })
 
-            it('emits Distributed event', async function() {
+            it('emits Distributed event', function() {
               const { logs } = tx
 
               logs.length.should.equal(1)
