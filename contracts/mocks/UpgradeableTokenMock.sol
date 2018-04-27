@@ -17,4 +17,8 @@ contract UpgradeableTokenMock is UpgradeableToken {
     emit Transfer(0x0, msg.sender, _totalSupply);
   }
 
+  function canUpgrade() public view returns(bool) {
+    return true;
+  }
+
 }

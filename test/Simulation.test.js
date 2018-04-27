@@ -259,9 +259,9 @@ export default class FlexaContractManager {
     )
   }
 
-  transferBonuses = async () => {
+  transferBonuses = () => {
     this.printTitle('Sending Bonus Tokens')
-    await this._transferDistribution()
+    this._transferDistribution(this.bonusVault, this.distribution)
   }
 
   _transferDistribution = async (vault, distribution) => {
@@ -410,7 +410,7 @@ contract('Deployment Simulation', function([_, owner]) {
 
     describe('when token vault has been unlocked', function() {
       it('tokens can be transferred to investors', async function() {
-        await flexaDeployment.sendTokens()
+        await flexaDeployment.transferTokens()
       })
     })
 
@@ -424,7 +424,7 @@ contract('Deployment Simulation', function([_, owner]) {
       })
 
       it('bonuses can be transferred to investors', async function() {
-        await flexaDeployment.sendBonuses()
+        await flexaDeployment.transferBonuses()
       })
     })
   })

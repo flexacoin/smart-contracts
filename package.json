@@ -4,17 +4,13 @@
   "description": "Flexacoin and Token Vault smart contracts",
   "author": "Zachary Kilgore @ Flexa Technologies, LLC",
   "private": true,
-  "keywords": [
-    "Ethereum",
-    "Flexacoin",
-    "Token Vault",
-    "Solidity"
-  ],
+  "keywords": ["Ethereum", "Flexacoin", "Token Vault", "Solidity"],
   "scripts": {
     "compile": "truffle compile",
     "migrate": "truffle migrate --reset",
     "networks": "truffle networks",
-    "ganache": "ganache-cli --accounts=10 --mnemonic='candy maple cake sugar pudding cream honey rich smooth crumble sweet treat'",
+    "ganache":
+      "ganache-cli --accounts=10 --gasLimit=1e14 --mnemonic='candy maple cake sugar pudding cream honey rich smooth crumble sweet treat'",
     "test": "truffle test --network test",
     "coverage": "./node_modules/.bin/solidity-coverage"
   },

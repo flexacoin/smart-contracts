@@ -8,14 +8,14 @@ require('chai')
   .use(require('chai-bignumber')(BigNumber))
   .should()
 
+// const Flexacoin = artifacts.require('Flexacoin')
 const UpgradeableTokenMock = artifacts.require('UpgradeableTokenMock')
 const UpgradeAgentMock = artifacts.require('UpgradeAgentMock')
 
 contract('UpgradeableToken', function([
   _,
   owner,
-  accountMaster,
-  secondMaster,
+  secondOwner,
   otherAccount,
   accountOne,
   accountTwo,
@@ -23,80 +23,71 @@ contract('UpgradeableToken', function([
   const totalSupply = tokens(1000)
 
   beforeEach(async function() {
-    this.token = await UpgradeableTokenMock.new(accountMaster, totalSupply, {
+    this.token = await UpgradeableTokenMock.new(totalSupply, {
       from: owner,
     })
   })
 
   describe('Constructor', function() {
-    describe('when upgrade master is zero address', function() {
-      it('reverts', async function() {
-        await assertRevert(
-          UpgradeableTokenMock.new(ZERO_ADDRESS, totalSupply, { from: owner })
-        )
-      })
-    })
+    it('sets owner', async function() {
+      const upgradeOwner = await this.token.owner()
 
-    describe('when upgrade master is valid', function() {
-      beforeEach(async function() {
-        this.token = await UpgradeableTokenMock.new(
-          accountMaster,
-          totalSupply,
-          {
-            from: owner,
-          }
-        )
-      })
-
-      it('sets upgrade master', async function() {
-        const upgradeMaster = await this.token.upgradeMaster()
-
-        upgradeMaster.should.equal(accountMaster)
-      })
+      upgradeOwner.should.equal(owner)
     })
   })
 
-  describe('setUpgradeMaster', function() {
-    describe('when called by current upgrade master', function() {
-      describe('when setting upgrade master to zero address', function() {
-        it('reverts', async function() {
-          await assertRevert(
-            this.token.setUpgradeMaster(ZERO_ADDRESS, { from: accountMaster })
-          )
-        })
-      })
-
-      describe('when setting upgrade master to valid address', function() {
-        const nextMaster = secondMaster
+  describe('set new upgrade owner', function() {
+    describe('when called by current owner', function() {
+      describe('when setting upgrade owner to valid address', function() {
+        const nextOwner = secondOwner
 
         beforeEach(async function() {
-          await this.token.setUpgradeMaster(nextMaster, { from: accountMaster })
+          await this.token.transferOwnership(nextOwner, { from: owner })
         })
 
-        it('sets the upgrade master', async function() {
-          const master = await this.token.upgradeMaster()
-          master.should.equal(nextMaster)
+        it('sets the pending owner', async function() {
+          const pendingOwner = await this.token.pendingOwner()
+          pendingOwner.should.equal(nextOwner)
+        })
+
+        describe('when non pending owner claims', function() {
+          it('reverts', async function() {
+            await assertRevert(
+              this.token.claimOwnership({ from: otherAccount })
+            )
+          })
+        })
+
+        describe('when pending owner claims', function() {
+          beforeEach(async function() {
+            await this.token.claimOwnership({ from: nextOwner })
+          })
+
+          it('updates the contract owner', async function() {
+            const newOwner = await this.token.owner()
+            newOwner.should.equal(nextOwner)
+          })
         })
       })
     })
 
     describe('when called by other account', function() {
-      const nextMaster = secondMaster
+      const nextOwner = secondOwner
 
       it('reverts', async function() {
         await assertRevert(
-          this.token.setUpgradeMaster(nextMaster, { from: otherAccount })
+          this.token.transferOwnership(nextOwner, { from: otherAccount })
         )
       })
     })
   })
 
-  describe('setUpgradeAgent', function() {
-    describe('when called by current upgrade master', function() {
+  describe('set upgrade agent', function() {
+    describe('when called by current upgrade owner', function() {
       describe('when setting upgrade agent to zero address', function() {
         it('reverts', async function() {
           await assertRevert(
-            this.token.setUpgradeAgent(ZERO_ADDRESS, { from: accountMaster })
+            this.token.setUpgradeAgent(ZERO_ADDRESS, { from: owner })
           )
         })
       })
@@ -108,7 +99,7 @@ contract('UpgradeableToken', function([
           it('reverts', async function() {
             await assertRevert(
               this.token.setUpgradeAgent(upgradeAgent, {
-                from: accountMaster,
+                from: owner,
               })
             )
           })
@@ -124,7 +115,7 @@ contract('UpgradeableToken', function([
             it('reverts', async function() {
               await assertRevert(
                 this.token.setUpgradeAgent(this.upgradeAgent.address, {
-                  from: accountMaster,
+                  from: owner,
                 })
               )
             })
@@ -137,7 +128,7 @@ contract('UpgradeableToken', function([
 
             it('sets the upgrade agent', async function() {
               await this.token.setUpgradeAgent(this.upgradeAgent.address, {
-                from: accountMaster,
+                from: owner,
               })
 
               const upgradeAgent = await this.token.upgradeAgent()
@@ -148,7 +139,7 @@ contract('UpgradeableToken', function([
               const { logs } = await this.token.setUpgradeAgent(
                 this.upgradeAgent.address,
                 {
-                  from: accountMaster,
+                  from: owner,
                 }
               )
 
@@ -166,7 +157,7 @@ contract('UpgradeableToken', function([
                 const { logs } = await this.token.setUpgradeAgent(
                   this.upgradeAgent2.address,
                   {
-                    from: accountMaster,
+                    from: owner,
                   }
                 )
 
@@ -185,13 +176,19 @@ contract('UpgradeableToken', function([
       })
     })
 
-    describe('when called by non upgrade master', function() {
-      const nextMaster = secondMaster
+    describe('when called by non owner', function() {
+      describe('with valid upgrade agent', function() {
+        const from = otherAccount
 
-      it('reverts', async function() {
-        await assertRevert(
-          this.token.setUpgradeMaster(nextMaster, { from: otherAccount })
-        )
+        beforeEach(async function() {
+          this.upgradeAgent = await UpgradeAgentMock.new(totalSupply)
+        })
+
+        it('reverts', async function() {
+          await assertRevert(
+            this.token.setUpgradeAgent(this.upgradeAgent.address, { from })
+          )
+        })
       })
     })
   })
@@ -221,7 +218,7 @@ contract('UpgradeableToken', function([
         })
 
         await this.token.setUpgradeAgent(this.upgradeAgent.address, {
-          from: accountMaster,
+          from: owner,
         })
       })
 
@@ -335,7 +332,7 @@ contract('UpgradeableToken', function([
         })
 
         await this.token.setUpgradeAgent(this.upgradeAgent.address, {
-          from: accountMaster,
+          from: owner,
         })
       })
 
@@ -366,7 +363,7 @@ contract('UpgradeableToken', function([
           it('reverts', async function() {
             await assertRevert(
               this.token.setUpgradeAgent(this.upgradeAgent2.address, {
-                from: accountMaster,
+                from: owner,
               })
             )
           })
