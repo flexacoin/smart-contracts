@@ -95,7 +95,6 @@ export default class FlexaContractManager {
       TokenVault,
     }
     this.vaultConfig = vaultConfig
-
     // this.log = new Log()
   }
 
@@ -104,12 +103,21 @@ export default class FlexaContractManager {
   allocations = []
 
   parseDistribution = async filename => {
-    this.printTitle('Parse Distribution')
+    this.printTitle('Parsing Distribution')
     this.distribution = await FlexaContractManager.parseDistributionCSV(
       filename
     )
     this.print(`Done parsing ${filename}`)
   }
+
+  run = async () => {
+    await this.deployContracts()
+    await this.allocateDistribution()
+  }
+
+  // calculateTokens = () => {
+  //   distribution.reduce((val, { bonus }) => val + bonus, 0)
+  // }
 
   deployContracts = async () => {
     const {
@@ -174,7 +182,7 @@ export default class FlexaContractManager {
     await Array.forEach(
       this.distribution,
       ({ address, value, bonus }) => {
-        this.printAllocation(address, value, bonus)
+        this._printAllocation(address, value, bonus)
 
         this.allocate(this.tokenVault, address, value)
         this.allocate(this.bonusVault, address, bonus)
@@ -238,7 +246,7 @@ export default class FlexaContractManager {
     await bonusVault.lock({ from: owner })
   }
 
-  sendTokens = async () => {
+  transferTokens = async () => {
     this.printTitle('Sending Tokens')
 
     await Array.forEach(
@@ -251,13 +259,16 @@ export default class FlexaContractManager {
     )
   }
 
-  sendBonuses = async () => {
+  transferBonuses = async () => {
     this.printTitle('Sending Bonus Tokens')
+    await this._transferDistribution()
+  }
 
+  _transferDistribution = async (vault, distribution) => {
     await Array.forEach(
-      this.distribution,
-      ({ address, _, bonus }) => {
-        this.print(`Sending ${bonus} bonus tokens to ${address}`)
+      distribution,
+      ({ address, value }) => {
+        this.print(`Transferring ${value} tokens to ${address}`)
         this._transferFor(this.bonusVault, address)
       },
       this
@@ -284,7 +295,7 @@ export default class FlexaContractManager {
     this.receipts[receipt.transactionHash] = receipt
   }
 
-  printAllocation = (address, tokens, bonus) => {
+  _printAllocation = (address, tokens, bonus) => {
     console.log()
     this.printLine()
     this.print(`Address: ${address}`)
