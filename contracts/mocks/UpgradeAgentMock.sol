@@ -1,4 +1,4 @@
-pragma solidity 0.4.21;
+pragma solidity 0.4.23;
 
 import "../tokenmarket/UpgradeAgent.sol";
 
@@ -13,8 +13,15 @@ contract UpgradeAgentMock is UpgradeAgent {
    * @dev Constructor so one can set the original supply correctly.
    * @param _originalSupply Amount of total supply the original token had
    */
-  function UpgradeAgentMock(uint256 _originalSupply) public {
+  constructor(uint256 _originalSupply) public {
     originalSupply = _originalSupply;
+  }
+
+  /**
+   * @dev Implementation to signify contract is indeed and Upgrade Agent.
+   */
+  function isUpgradeAgent() public view returns(bool) {
+    return true;
   }
 
   /**

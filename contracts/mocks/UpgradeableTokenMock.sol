@@ -1,4 +1,4 @@
-pragma solidity 0.4.21;
+pragma solidity 0.4.23;
 
 import "../UpgradeableToken.sol";
 
@@ -11,13 +11,7 @@ contract UpgradeableTokenMock is UpgradeableToken {
    * @dev Constructor of a mock UpgradeableToken.
    * @param _totalSupply Amount of total supply the original token should have
    */
-  function UpgradeableTokenMock(
-    address _upgradeMaster,
-    uint256 _totalSupply
-  )
-    public
-    UpgradeableToken(_upgradeMaster)
-  {
+  constructor(uint256 _totalSupply) public {
     totalSupply_ = _totalSupply;
     balances[msg.sender] = _totalSupply;
     emit Transfer(0x0, msg.sender, _totalSupply);

@@ -1,4 +1,4 @@
-pragma solidity 0.4.21;
+pragma solidity 0.4.23;
 
 import "./Recoverable.sol";
 import "../zeppelin/contracts/token/ERC20/ERC20Basic.sol";
@@ -97,7 +97,7 @@ contract TokenVault is Recoverable {
    * after locking in the allocations and then unlocking the allocations for
    * claiming
    */
-  function TokenVault(
+  constructor(
     ERC20Basic _token,
     uint256 _tokensToBeAllocated,
     uint256 _vestingPeriod

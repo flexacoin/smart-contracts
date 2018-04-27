@@ -4,29 +4,24 @@
  * The contract has been minimally modified to work outside of that ecosystem,
  * and refactored for consistency and style.
  */
-pragma solidity 0.4.21;
+pragma solidity 0.4.23;
 
 import "../zeppelin/contracts/token/ERC20/StandardToken.sol";
 import "./tokenmarket/UpgradeAgent.sol";
+import "./Recoverable.sol";
 
 /**
  * @title UpgradeableToken provides a token upgrade mechanism that, after
  * adequete preparation, allows token owners to opt-in to a new upgraded token.
- * @notice To upgrade the token, the upgrade master (owner) sets the upgradeAgent
- * contract. This upgradeAgent must satisfy the UpgradeAgent interface, meaning
+ * @notice To upgrade the token, the owner sets the upgradeAgent contract.
+ * This upgradeAgent must satisfy the UpgradeAgent interface, meaning
  * it has a method `upgradeFrom` that is responsible for creating new tokens for
  * a user. Once the agent is set, the token holders upgrade their tokens
  * through this contracts `upgrade` method.
  * @author Zachary Kilgore @ Flexa Technologies LLC
  * @dev First envisioned by Golem and Lunyr projects
  */
-contract UpgradeableToken is StandardToken {
-
-  /**
-   * Contract/person who can set the upgrade agent. Similar to `owner` in Ownable
-   * contracts.
-   */
-  address public upgradeMaster;
+contract UpgradeableToken is StandardToken, Recoverable {
 
   /** The contract that will handle the upgrading the tokens. */
   UpgradeAgent public upgradeAgent;
@@ -61,23 +56,6 @@ contract UpgradeableToken is StandardToken {
   event UpgradeAgentSet(address upgradeAgent);
 
 
-  /** Ensure function is called by current upgrade master. */
-  modifier onlyUpgradeMaster() {
-    require(msg.sender == upgradeMaster);
-    _;
-  }
-
-
-  /**
-   * @notice UpgradeableToken contract constructor function.
-   * @dev Do not allow construction without upgrade master set.
-   * @param _upgradeMaster Address of the upgrade master
-   */
-  function UpgradeableToken(address _upgradeMaster) public {
-    require(_upgradeMaster != address(0));
-    upgradeMaster = _upgradeMaster;
-  }
-
   /**
    * @notice Allow the token holder to upgrade some of their tokens to the new
    * contract.
@@ -101,22 +79,12 @@ contract UpgradeableToken is StandardToken {
   }
 
   /**
-   * @notice Change the upgrade master.
-   * @dev This allows us to set a new upgrade master (owner).
-   * @param _upgradeMaster The address to change the upgrade master to
-   */
-  function setUpgradeMaster(address _upgradeMaster) external onlyUpgradeMaster {
-    require(_upgradeMaster != address(0));
-    upgradeMaster = _upgradeMaster;
-  }
-
-  /**
    * @notice Set an upgrade agent contract to process the upgrade.
    * @dev The _upgradeAgent contract address must satisfy the UpgradeAgent
    * interface.
    * @param _upgradeAgent The address of the new UpgradeAgent smart contract
    */
-  function setUpgradeAgent(address _upgradeAgent) external onlyUpgradeMaster {
+  function setUpgradeAgent(address _upgradeAgent) external onlyOwner {
     require(canUpgrade()); // Ensure the token is upgradeable in the first place
     require(_upgradeAgent != address(0)); // Ensure address is not zero address
     require(getUpgradeState() != UpgradeState.Upgrading); // Ensure upgrade has not started
@@ -142,11 +110,11 @@ contract UpgradeableToken is StandardToken {
   }
 
   /**
-   * @dev Child contract can enable to provide the condition when the upgrade
+   * @notice Can the contract be upgradead?
+   * @dev Child contract must implement and provide the condition when the upgrade
    * can begin.
+   * @return true if the contract can be upgraded, false if not
    */
-  function canUpgrade() public view returns(bool) {
-    return true;
-  }
+  function canUpgrade() public view returns(bool);
 
 }
