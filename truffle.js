@@ -1,6 +1,8 @@
 require('babel-register')
 require('babel-polyfill')
 
+const LedgerWalletProvider = require('truffle-ledger-provider')
+
 const config = {
   migrations_directory: './migrations',
   networks: {
@@ -32,8 +34,13 @@ const config = {
       network_id: '1',
     },
     rinkeby: {
-      host: 'localhost',
-      port: 8545,
+      provider: new LedgerWalletProvider(
+        {
+          networkId: 4,
+          accountOffset: 0,
+        },
+        'https://rinkeby.infura.io/UySth7pExjWwPyqOE9Sw'
+      ),
       network_id: '4',
     },
   },

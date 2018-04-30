@@ -1,17 +1,17 @@
+const path = require('path')
 const { assert } = require('chai')
-// const { BigNumber } = web3
 
 const Flexacoin = artifacts.require('./Flexacoin.sol')
 const TokenVault = artifacts.require('./TokenVault.sol')
 
-const FlexaContractManager = require('../tools/FlexaContractManager')
+const FlexaContractManager = require('../tools/FlexaContractManager').default
 
-module.exports = async function(deployer, network, accounts) {
+module.exports = async function(deployer, network, [owner]) {
   if (network === 'test' || network === 'coverage') {
     return
   }
 
-  const vaultConfig = vaultConfigs[network]
+  const vaultConfig = require('../tools/vaultConfig.js')[network]
   assert.isNotNull(vaultConfig)
 
   const flexaDeployment = new FlexaContractManager(
@@ -22,10 +22,21 @@ module.exports = async function(deployer, network, accounts) {
     vaultConfig
   )
 
-  await flexaDeployment.run()
+  const distributionFile = path.join(
+    __dirname,
+    `../tools/data/token_distribution.${network}.csv`
+  )
 
-  console.log(accounts)
+  try {
+    await flexaDeployment.parseDistribution(distributionFile)
+  } catch (e) {
+    console.error('Error parsing distribution file', e)
+    return false
+  }
+
+  try {
+    await flexaDeployment.run()
+  } catch (e) {
+    console.error(`Error(s) deploying to ${network} network:`, e)
+  }
 }
-
-***REMOVED***
-//
