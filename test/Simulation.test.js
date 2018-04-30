@@ -11,6 +11,9 @@ require('chai')
 const Flexacoin = artifacts.require('Flexacoin')
 const TokenVault = artifacts.require('TokenVault')
 
+// Run with VERBOSE=1 to see the collected logs of the deployer
+const verbose = process.env.VERBOSE
+
 /*
  * Integration tests of the Flexacoin and TokenVault deployment scripts, as
  * well as post deployment operation of the contracts, including:
@@ -102,7 +105,9 @@ contract('Deployment Simulation', function([_, owner]) {
   })
 
   after(async function() {
-    flexaDeployment.printResults()
+    if (verbose) {
+      flexaDeployment.printResults()
+    }
 
     // Fast forward to clear the deck for the next tests
     const oneHour = 1 * 60 * 60

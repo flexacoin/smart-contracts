@@ -435,4 +435,8 @@ export default class FlexaContractManager {
 
     Log.log(`Total gas used: ${total}`)
   }
+
+  printResults = () => {
+    Log.flush()
+  }
 }
