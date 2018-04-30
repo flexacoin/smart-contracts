@@ -42,9 +42,9 @@ contract('Deployment Simulation', function([_, owner]) {
     __dirname,
     'data/test_distribution.csv'
   )
-  flexaDeployment.parseDistribution(testDistributionFile)
 
   before(async function() {
+    await flexaDeployment.parseDistribution(testDistributionFile)
     await flexaDeployment.deployContracts()
   })
 
@@ -109,8 +109,3 @@ contract('Deployment Simulation', function([_, owner]) {
     await increaseTime(oneHour)
   })
 })
-
-// const parseGas = txHash => {
-//   const { gasUsed } = web3.eth.getTransactionReceipt(txHash)
-//   return gasUsed
-// }

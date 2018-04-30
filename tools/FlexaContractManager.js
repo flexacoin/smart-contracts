@@ -6,21 +6,37 @@ import BigNumber from 'bignumber.js'
 const { assert } = chai
 
 class Log {
-  static log(text) {
-    console.log(`- ${text}`)
+  static messages = []
+
+  static log(text = '') {
+    // console.log(`- ${text}`)
+    this.messages.push(`- ${text}`)
   }
 
-  static line() {
-    console.log(
-      `--------------------------------------------------------------------------------`
-    )
+  static line(char = '-') {
+    this.messages.push(char.repeat(80))
   }
 
-  static title(title) {
-    console.log()
+  static section(title = '') {
+    this.messages.push('')
+    this.messages.push('')
+    this.line('^')
+    this.messages.push('')
+    this.log(title)
+    this.messages.push('')
+    this.line('v')
+    this.messages.push('')
+  }
+
+  static title(title = '') {
+    this.messages.push('')
     this.line()
     this.log(title)
     this.line()
+  }
+
+  static flush() {
+    this.messages.forEach(args => console.log.call(console, args))
   }
 }
 
@@ -79,8 +95,74 @@ export default class FlexaContractManager {
   receipts = []
   allocations = []
 
+  run = async () => {
+    const { owner } = this
+
+    Log.section('Deploying Contracts')
+
+    await this.deployContracts()
+
+    Log.section('Preparing Vaults')
+
+    await this.allocateDistribution()
+    await this.prepareVaults()
+
+    // Ensure vault allocations have been set
+    await this._assertAllocationsSet()
+
+    // Lock both vaults...
+    await this.lockVaults()
+
+    // ...Then immediately unlock the token vault, which requires no vesting
+    // period to pass
+    await this.tokenVault.unlock({ from: owner })
+
+    // Finally, transfer the token vault tokens for holders...
+    await this.transferTokens()
+
+    // ...and assert the balances of the tokens are correct
+    await this._assertTransferBalances()
+
+    this._processGas()
+
+    Log.flush()
+  }
+
+  _assertAllocationsSet = async () => {
+    assert.equal(
+      await this.tokenVault.tokensAllocated(),
+      FlexaContractManager.toTokens(this.vaultConfig.tokensToBeAllocated),
+      'Token Vault tokens allocated should equal expected allocation'
+    )
+    assert.equal(
+      await this.bonusVault.tokensAllocated(),
+      FlexaContractManager.toTokens(this.vaultConfig.bonusToBeAllocated),
+      'Bonus Vault tokens allocated should equal expected allocation'
+    )
+  }
+
+  _assertTransferBalances = async () => {
+    Log.title('Asserting token balances are correct')
+
+    return Promise.all(
+      this.distribution.map(async ({ address, value }) => {
+        const balance = await this.balanceOf(address)
+        Log.log(`Checking Flexacoin balance for ${address}...`)
+        Log.log(`Want: ${value}`)
+        Log.log(`Got:  ${balance.div(FlexaContractManager.DECIMALS_FACTOR)}`)
+        Log.line()
+
+        assert.equal(
+          balance,
+          FlexaContractManager.toTokens(value),
+          `Balance of Flexacoin for ${address} incorrect`
+        )
+      }, this)
+    )
+  }
+
   parseDistribution = async filename => {
-    Log.title('Parsing Distribution')
+    Log.section('Parsing Distribution')
     this.distribution = await FlexaContractManager.parseDistributionCSV(
       filename
     )
@@ -97,26 +179,24 @@ export default class FlexaContractManager {
       this.vaultConfig.bonusToBeAllocated,
       'Bonus mismatch between vault config and csv'
     )
+
+    Log.line()
+
+    this.distribution.map(({ address, value, bonus }) => {
+      Log.log(`To Address: ${address}`)
+      Log.log(`Tokens:     ${value}`)
+      Log.log(`Bonus:      ${bonus} `)
+      Log.line()
+    })
   }
 
   _calculateDistributionTokens = type => {
     return this.distribution.reduce((val, el) => val + Number(el[type]), 0)
   }
 
-  run = async () => {
-    await this.deployContracts()
-    await this.allocateDistribution()
-
-    assert.equal(
-      await this.tokenVault.tokensAllocated(),
-      FlexaContractManager.toTokens(this.vaultConfig.tokensToBeAllocated),
-      'Token Vault tokens allocated should equal expected allocation'
-    )
-    assert.equal(
-      await this.bonusVault.tokensAllocated(),
-      FlexaContractManager.toTokens(this.vaultConfig.bonusToBeAllocated),
-      'Bonus Vault tokens allocated should equal expected allocation'
-    )
+  balanceOf = async address => {
+    const balance = await this.flexacoin.balanceOf(address)
+    return balance
   }
 
   deployContracts = async () => {
@@ -165,35 +245,27 @@ export default class FlexaContractManager {
     )
   }
 
-  // Do whatever logging/saving of deployed contract instances needed here
-  _processContract = (name, instance) => {
-    Log.title(`${name} Contract`)
-    Log.log(`Deploying ${name} contract... deployed!`)
-    Log.log(`  Address: ${instance.address}`)
-    Log.log(`  Tx Hash: ${instance.transactionHash}`)
-
-    this._pushTx(instance.transactionHash)
-    return instance
-  }
-
   allocateDistribution = async () => {
-    Log.title('Allocate Vault Distributions')
+    Log.title('Processing Vault Distributions')
 
-    await Array.forEach(
-      this.distribution,
-      ({ address, value, bonus }) => {
-        this._printAllocation(address, value, bonus)
-
-        this.allocate(this.tokenVault, address, value)
-        this.allocate(this.bonusVault, address, bonus)
-      },
-      this
+    return await Promise.all(
+      this.distribution.map(async ({ address, value, bonus }) => {
+        // Log.log(`To Address: ${address}`)
+        // Log.log(`Tokens:     ${value}`)
+        // Log.log(`Bonus:      ${bonus} `)
+        // Log.line()
+        await this.allocate(this.tokenVault, address, value, {
+          title: `Allocating ${value} tokens to ${address}`,
+        })
+        await this.allocate(this.bonusVault, address, bonus, {
+          title: `Allocating ${bonus} bonuses to ${address}`,
+        })
+      }, this)
     )
   }
 
-  allocate = async (vault, address, value) => {
+  allocate = async (vault, address, value, logOpts = {}) => {
     const { owner } = this
-
     const result = await vault.setAllocation(
       address,
       FlexaContractManager.toTokens(value),
@@ -202,15 +274,15 @@ export default class FlexaContractManager {
       }
     )
 
-    this.allocations.push(result)
-    this._pushReceipt(result.receipt)
-
-    return result
+    return this._processResult(result, {
+      ...logOpts,
+      func: `${
+        vault === this.tokenVault ? 'tokenVault' : 'bonusVault'
+      }.setAllocation('${address}', ${value})`,
+    })
   }
 
   prepareVaults = async () => {
-    Log.title('Preparing Token and Bonus Vaults')
-
     const {
       owner,
       tokenVault,
@@ -218,99 +290,149 @@ export default class FlexaContractManager {
       vaultConfig: { tokensToBeAllocated, bonusToBeAllocated },
     } = this
 
-    Log.log(`Preparing Token Vault`)
-    await this._transfer(tokenVault.address, owner, tokensToBeAllocated)
+    await this._transfer(tokenVault.address, owner, tokensToBeAllocated, {
+      title: 'Preparing Token Vault',
+    })
 
-    Log.log(`Preparing Bonus Vault`)
-    await this._transfer(bonusVault.address, owner, bonusToBeAllocated)
+    await this._transfer(bonusVault.address, owner, bonusToBeAllocated, {
+      title: 'Preparing Bonus Vault',
+    })
   }
 
-  _transfer = async (to, from, value) => {
-    Log.log(`Transferring ${value} tokens to ${to}`)
-
+  _transfer = async (to, from, value, logOpts = {}) => {
     const result = await this.flexacoin.transfer(
       to,
       FlexaContractManager.toTokens(value),
       { from }
     )
 
-    this._pushReceipt(result.receipt)
-
-    return result
+    return this._processResult(result, {
+      ...logOpts,
+      func: `Flexacoin.transfer(${to}, ${value})`,
+    })
   }
 
   lockVaults = async () => {
+    Log.section('Locking Vaults')
+
     const { owner, tokenVault, bonusVault } = this
 
-    await tokenVault.lock({ from: owner })
-    await bonusVault.lock({ from: owner })
+    let result
+    result = await tokenVault.lock({ from: owner })
+    this._processTx(result.tx, {
+      title: 'Locking Token Vault',
+      func: 'tokenVault.lock()',
+    })
+
+    result = await bonusVault.lock({ from: owner })
+    this._processTx(result.tx, {
+      title: 'Locking Bonus Vault',
+      func: 'bokenVault.lock()',
+    })
   }
 
   transferTokens = async () => {
-    Log.title('Sending Tokens')
-    this._transferDistribution(this.tokenVault, this.distribution, 'value')
-  }
+    Log.section('Transferring Regular Tokens')
 
-  transferBonuses = () => {
-    Log.title('Sending Bonus Tokens')
-    this._transferDistribution(this.bonusVault, this.distribution, 'bonus')
-  }
-
-  _transferDistribution = async (vault, distribution, valueKey) => {
-    await Array.forEach(
-      distribution,
-      data => {
-        const { address } = data
-        const value = data[valueKey]
-        Log.log(`Transferring ${value} tokens to ${address}`)
-        this._transferFor(vault, address)
-      },
-      this
+    return await this._transferDistribution(
+      this.tokenVault,
+      this.distribution,
+      'value'
     )
   }
 
-  _transferFor = async (vault, address) => {
+  transferBonuses = async () => {
+    Log.section('Transferring Bonus Tokens')
+
+    return await this._transferDistribution(
+      this.bonusVault,
+      this.distribution,
+      'bonus'
+    )
+  }
+
+  _transferDistribution = async (vault, distribution, valueKey) => {
+    return await Promise.all(
+      distribution.map(data => {
+        const { address } = data
+        const value = data[valueKey]
+        return this._transferFor(vault, address, {
+          title: `Transferring ${value} tokens to ${address}`,
+        })
+      }, this)
+    )
+  }
+
+  _transferFor = async (vault, address, logOpts = {}) => {
     const { owner } = this
-
     const result = await vault.transferFor(address, { from: owner })
+    return this._processResult(result, {
+      ...logOpts,
+      func: `${
+        vault === this.tokenVault ? 'tokenVault' : 'bonusVault'
+      }.transferFor('${address}')`,
+    })
+  }
 
-    this._pushReceipt(result.receipt)
+  _processContract = (name, instance) => {
+    this._processTx(instance.transactionHash, {
+      title: `${name} Contract`,
+      copy: `Deploying ${name} contract... deployed!`,
+    })
+    return instance
+  }
 
+  _processResult = (result, opts) => {
+    this._processTx(result.tx, opts)
     return result
   }
 
-  _pushTx = txHash => {
+  _processTx = (txHash, opts) => {
+    const { title, func, copy } = opts
+
     this.transactionHashes.push(txHash)
-    this.receipts[txHash] = this.web3.eth.getTransactionReceipt(txHash)
+
+    const receipt = this.web3.eth.getTransactionReceipt(txHash)
+    this.receipts[txHash] = receipt
+
+    if (!receipt) {
+      Log.log(`NO RECEIPT FOUND: ${JSON.toString(opts)}`)
+      return
+    }
+
+    if (title) {
+      Log.title(title)
+    }
+
+    if (copy) {
+      Log.log(copy)
+    }
+
+    if (func) {
+      Log.log()
+      Log.log(func)
+      Log.log()
+    }
+
+    Log.log(`> transactionHash: ${receipt.transactionHash}`)
+    Log.log(`> transactionIndex: ${receipt.transactionIndex}`)
+    Log.log(`> blockHash: ${receipt.blockHash}`)
+    Log.log(`> blockNumber: ${receipt.blockNumber}`)
+    Log.log(`> gasUsed: ${receipt.gasUsed}`)
+    Log.log(`> cumulativeGasUsed: ${receipt.cumulativeGasUsed}`)
+    Log.log(`> contractAddress: ${receipt.contractAddress}`)
+    Log.log(`> status: ${receipt.status}`)
   }
 
-  _pushReceipt = receipt => {
-    this.transactionHashes.push(receipt.transactionHash)
-    this.receipts[receipt.transactionHash] = receipt
-  }
+  _processGas = () => {
+    Log.section('Gas Consumption')
 
-  _printAllocation = (address, tokens, bonus) => {
-    console.log()
-    Log.line()
-    Log.log(`Address: ${address}`)
-    Log.log(`Tokens:  ${tokens}`)
-    Log.log(`Bonus:   ${bonus}`)
-  }
+    const { web3, transactionHashes } = this
+    const total = transactionHashes.reduce((total, txHash) => {
+      const { gasUsed } = web3.eth.getTransactionReceipt(txHash)
+      return total + Number(gasUsed)
+    }, 0)
 
-  printResults = () => {
-    // const gasUsed = {
-    //   contracts: 0,
-    //   transfers: 0,
-    //   allocation: 0,
-    // }
-    // console.log('Gas Used: Contracts', gasUsed.contracts)
-    // console.log('Gas Used: Transfers', gasUsed.transfers)
-    // console.log('Gas Used: Allocation', gasUsed.allocation)
-
-    const { transactionHashes } = this
-
-    Log.title('Tx Hashes')
-
-    transactionHashes.forEach(v => console.log(v))
+    Log.log(`Total gas used: ${total}`)
   }
 }
