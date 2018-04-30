@@ -71,19 +71,19 @@ contract TokenVault is Recoverable {
 
   /** Ensure the vault is able to be loaded. */
   modifier vaultLoading() {
-    require(lockedAt == 0);
+    require(lockedAt == 0, "Expected vault to be loadable");
     _;
   }
 
   /** Ensure the vault has been locked. */
   modifier vaultLocked() {
-    require(lockedAt > 0);
+    require(lockedAt > 0, "Expected vault to be locked");
     _;
   }
 
   /** Ensure the vault has been unlocked. */
   modifier vaultUnlocked() {
-    require(unlockedAt > 0);
+    require(unlockedAt > 0, "Expected the vault to be unlocked");
     _;
   }
 
@@ -104,8 +104,8 @@ contract TokenVault is Recoverable {
   )
     public
   {
-    require(address(_token) != address(0));
-    require(_tokensToBeAllocated > 0);
+    require(address(_token) != address(0), "Token address should not be blank");
+    require(_tokensToBeAllocated > 0, "Token allocation should be greater than zero");
 
     token = _token;
     tokensToBeAllocated = _tokensToBeAllocated;
@@ -127,11 +127,11 @@ contract TokenVault is Recoverable {
     external
     onlyOwner
     vaultLoading
-    returns(bool success)
+    returns(bool)
   {
-    require(_beneficiary != address(0)); // Ensure we've set the beneficiary
-    require(_amount != 0); // Ensure we have non zero amount
-    require(allocations[_beneficiary] == 0); // Ensure that we haven't yet set for this address
+    require(_beneficiary != address(0), "Beneficiary of allocation must not be blank");
+    require(_amount != 0, "Amount of allocation must not be zero");
+    require(allocations[_beneficiary] == 0, "Allocation amount for this beneficiary is not already set");
 
     // Update the storage
     allocations[_beneficiary] = allocations[_beneficiary].add(_amount);
@@ -139,7 +139,7 @@ contract TokenVault is Recoverable {
 
     emit Allocated(_beneficiary, _amount);
 
-    success = true;
+    return true;
   }
 
   /**
@@ -148,10 +148,8 @@ contract TokenVault is Recoverable {
    * @return true if the vault has been successfully locked
    */
   function lock() external onlyOwner vaultLoading {
-    // Ensure we have allocated all we expected to
-    require(tokensAllocated == tokensToBeAllocated);
-    // Ensure vault has required balance of tokens to distribute.
-    require(token.balanceOf(address(this)) == tokensAllocated);
+    require(tokensAllocated == tokensToBeAllocated, "Expected to allocate all tokens");
+    require(token.balanceOf(address(this)) == tokensAllocated, "Vault must own enough tokens to distribute");
 
     // solium-disable-next-line security/no-block-members
     lockedAt = block.timestamp;
@@ -165,9 +163,9 @@ contract TokenVault is Recoverable {
    * @dev Must be locked prior to unlocking. Also, the vestingPeriod must be up.
    */
   function unlock() external onlyOwner vaultLocked {
-    require(unlockedAt == 0); // Can only unlock once
+    require(unlockedAt == 0, "Must not be unlocked yet");
     // solium-disable-next-line security/no-block-members
-    require(block.timestamp >= lockedAt.add(vestingPeriod)); // Lock up must be over
+    require(block.timestamp >= lockedAt.add(vestingPeriod), "Lock up must be over");
 
     // solium-disable-next-line security/no-block-members
     unlockedAt = block.timestamp;
@@ -180,7 +178,7 @@ contract TokenVault is Recoverable {
    * @dev Can only be called once contract has been unlocked.
    * @return true if balance successfully distributed to sender, false otherwise
    */
-  function claim() public vaultUnlocked returns(bool success) {
+  function claim() public vaultUnlocked returns(bool) {
     return _transferTokens(msg.sender);
   }
 
@@ -198,7 +196,7 @@ contract TokenVault is Recoverable {
     public
     onlyOwner
     vaultUnlocked
-    returns(bool success)
+    returns(bool)
   {
     return _transferTokens(_beneficiary);
   }
@@ -212,7 +210,7 @@ contract TokenVault is Recoverable {
    * @param _beneficiary Address to check for
    * @return The amount of tokens available to be claimed
    */
-  function _claimableTokens(address _beneficiary) internal view returns(uint256 amount) {
+  function _claimableTokens(address _beneficiary) internal view returns(uint256) {
     return allocations[_beneficiary].sub(claimed[_beneficiary]);
   }
 
@@ -222,9 +220,9 @@ contract TokenVault is Recoverable {
    * from the claimable amount in the vault
    * @return true if tokens transferred successfully, false if not
    */
-  function _transferTokens(address _beneficiary) internal returns(bool success) {
+  function _transferTokens(address _beneficiary) internal returns(bool) {
     uint256 _amount = _claimableTokens(_beneficiary);
-    require(_amount > 0);
+    require(_amount > 0, "Tokens to claim must be greater than zero");
 
     claimed[_beneficiary] = claimed[_beneficiary].add(_amount);
     totalClaimed = totalClaimed.add(_amount);
@@ -233,7 +231,7 @@ contract TokenVault is Recoverable {
 
     emit Distributed(_beneficiary, _amount);
 
-    success = true;
+    return true;
   }
 
 }

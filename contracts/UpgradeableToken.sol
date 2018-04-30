@@ -17,7 +17,7 @@ import "./Recoverable.sol";
  * This upgradeAgent must satisfy the UpgradeAgent interface, meaning
  * it has a method `upgradeFrom` that is responsible for creating new tokens for
  * a user. Once the agent is set, the token holders upgrade their tokens
- * through this contracts `upgrade` method.
+ * through this contract's `upgrade` method.
  * @author Zachary Kilgore @ Flexa Technologies LLC
  * @dev First envisioned by Golem and Lunyr projects
  */
@@ -62,9 +62,12 @@ contract UpgradeableToken is StandardToken, Recoverable {
    * @param _value The amount of tokens to upgrade
    */
   function upgrade(uint256 _value) public {
-    UpgradeState state = getUpgradeState();
-    require(state == UpgradeState.ReadyToUpgrade || state == UpgradeState.Upgrading);
-    require(_value > 0);
+    UpgradeState _state = getUpgradeState();
+    require(
+      _state == UpgradeState.ReadyToUpgrade || _state == UpgradeState.Upgrading,
+      "State must be correct for upgrade"
+    );
+    require(_value > 0, "Upgrade value must be greater than zero");
 
     // Take tokens out of circulation
     balances[msg.sender] = balances[msg.sender].sub(_value);
@@ -84,17 +87,18 @@ contract UpgradeableToken is StandardToken, Recoverable {
    * interface.
    * @param _upgradeAgent The address of the new UpgradeAgent smart contract
    */
-  function setUpgradeAgent(address _upgradeAgent) external onlyOwner {
-    require(canUpgrade()); // Ensure the token is upgradeable in the first place
-    require(_upgradeAgent != address(0)); // Ensure address is not zero address
-    require(getUpgradeState() != UpgradeState.Upgrading); // Ensure upgrade has not started
+  function setUpgradeAgent(UpgradeAgent _upgradeAgent) external onlyOwner {
+    require(canUpgrade(), "Ensure the token is upgradeable in the first place");
+    require(_upgradeAgent != address(0), "Ensure upgrade agent address is not blank");
+    require(getUpgradeState() != UpgradeState.Upgrading, "Ensure upgrade has not started");
 
-    upgradeAgent = UpgradeAgent(_upgradeAgent);
+    upgradeAgent = _upgradeAgent;
 
-    // New upgradeAgent must be UpgradeAgent
-    require(upgradeAgent.isUpgradeAgent());
-    // Make sure that token supplies match in source and target token contracts
-    require(upgradeAgent.originalSupply() == totalSupply_);
+    require(upgradeAgent.isUpgradeAgent(), "New upgradeAgent must be UpgradeAgent");
+    require(
+      upgradeAgent.originalSupply() == totalSupply_,
+      "Make sure that token supplies match in source and target token contracts"
+    );
 
     emit UpgradeAgentSet(upgradeAgent);
   }
