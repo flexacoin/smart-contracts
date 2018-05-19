@@ -11,10 +11,10 @@
 Clone the repository and initialize submodules:
 
 ```bash
-git clone --recursive https://gitlab.com/flexaco/smart-contracts
+git clone --recursive https://github.com/flexahq/smart-contracts
 ```
 
-[OpenZeppelin's standard solidity contracts repo](https://github.com/OpenZeppelin/zeppelin-solidity) has been included as a submodule, pinned to commit 6a7114fd.
+[OpenZeppelin's standard solidity contracts repo](https://github.com/OpenZeppelin/zeppelin-solidity) has been included as a submodule, pinned to commit [4a10f727](https://github.com/OpenZeppelin/openzeppelin-solidity/tree/4a10f727c4756a8f6433f272a49e7a15db5e4b8f).
 
 ## Install Dependencies
 
@@ -80,9 +80,8 @@ It inherits the following capabilities:
 * Recoverable: Owned contract that allows the owner to recover ether and tokens
   sent to the contract in error that would otherwise be trapped.
 
-## Deployment
+## Smart Contract Audit
 
-Will use 2 vaults
+The Flexacoin smart contract and smart contract test code was audited for security and funtionality by [Dave Hoover](https://github.com/redsquirrel) on May 9th, 2018. His audit found no showstoppers or security vulnerabilities.
 
-* 1 with no vesting period for immediate claim
-* 1 with 6 month vesting period for bonuses
+The complete report can be read [here](https://github.com/flexahq/smart-contracts-audit).
