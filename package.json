@@ -48,5 +48,8 @@
     "truffle": "^4.1.7",
     "truffle-hdwallet-provider": "^0.0.3",
     "truffle-ledger-provider": "^0.0.1"
+  },
+  "dependencies": {
+    "lodash": "^4.17.10"
   }
 }

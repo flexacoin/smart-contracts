@@ -8,6 +8,9 @@
 
 # production
 /build
+*rinkeby*
+*mainnet*
+/truffle.local.js
 
 # misc
 .DS_Store
